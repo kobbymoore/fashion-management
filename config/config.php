@@ -6,7 +6,9 @@
 // ─── Site Identity ───────────────────────────────────────────
 define('SITE_NAME',     'Fashion Studio GH');
 define('SITE_TAGLINE',  'Curated Looks, Styled With Intention');
-define('BASE_URL',      (isset($_SERVER['HTTP_HOST']) ? (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'] : ''));
+// Use a relative root by default, or an environment variable if defined.
+// This ensures that assets starting with BASE_URL/assets/ work as /assets/
+define('BASE_URL', getenv('BASE_URL') ?: ''); 
 
 // ─── Database (Support for Environment Variables on Vercel) ──
 define('DB_HOST',    getenv('DB_HOST')    ?: 'aws-1-eu-west-1.pooler.supabase.com');
