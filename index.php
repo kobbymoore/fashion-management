@@ -8,7 +8,7 @@ if (isLoggedIn()) {
     redirect(BASE_URL . (hasRole('staff') ? '/admin/dashboard.php' : '/customer/dashboard.php'));
 }
 
-$styles  = getDB()->query("SELECT * FROM styles WHERE is_active=1 LIMIT 6")->fetchAll();
+$styles  = getDB()->query("SELECT * FROM styles WHERE is_active=TRUE LIMIT 6")->fetchAll();
 $totalCustomers = getDB()->query("SELECT COUNT(*) FROM users WHERE role='customer'")->fetchColumn();
 $totalOrders    = getDB()->query("SELECT COUNT(*) FROM orders")->fetchColumn();
 $completedOrders= getDB()->query("SELECT COUNT(*) FROM orders WHERE status='completed'")->fetchColumn();
