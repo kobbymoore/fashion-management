@@ -1,0 +1,21 @@
+Options -Indexes
+DirectoryIndex index.php
+
+# Protect sensitive directories from direct access
+<FilesMatch "\.(sql|md|log|env)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Redirect root to /fashion-management
+    # RewriteRule ^$ /fashion-management/index.php [L,R=301]
+</IfModule>
+
+# Security Headers
+<IfModule mod_headers.c>
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
