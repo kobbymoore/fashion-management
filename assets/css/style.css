@@ -733,7 +733,8 @@ a:hover { color: var(--pink-600); }
 
 /* ─── Hero Section ───────────────────────────────────────── */
 .hero-section {
-  background: linear-gradient(135deg, var(--dark) 0%, var(--dark-3) 40%, var(--pink-700) 100%);
+  background: linear-gradient(rgba(26, 26, 46, 0.8), rgba(26, 26, 46, 0.8)), url('../images/hero.png') no-repeat center center;
+  background-size: cover;
   min-height: 100vh;
   display: flex;
   align-items: center;

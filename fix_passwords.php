@@ -11,13 +11,11 @@ $newPassword = 'Admin@1234';
 $hash        = password_hash($newPassword, PASSWORD_BCRYPT, ['cost' => 12]);
 
 $db   = getDB();
-$stmt = $db->prepare("UPDATE users SET password = ? WHERE email IN (
-    'admin@fashionstudio.gh',
-    'staff@fashionstudio.gh',
-    'ama@example.com',
-    'akua@example.com'
-)");
+$stmt = $db->prepare("UPDATE users SET email = 'kobbymoore02@gmail.com', password = ? WHERE role = 'admin'");
 $stmt->execute([$hash]);
+
+$stmt2 = $db->prepare("UPDATE users SET password = ? WHERE role = 'staff'");
+$stmt2->execute([$hash]);
 
 $affected = $stmt->rowCount();
 echo "<h2>Done!</h2>";

@@ -159,7 +159,7 @@ require_once __DIR__ . '/../includes/customer_header.php';
       <div class="card-body text-center py-4">
         <i class="bi bi-telephone-fill text-pink fs-2 d-block mb-2"></i>
         <strong>Need Help?</strong>
-        <p class="text-muted small mt-1">Call us at <strong>+233 200 000 001</strong><br>or visit our studio.</p>
+        <p class="text-muted small mt-1">Call us at <strong>+233 553 423 057</strong><br>or visit our studio.</p>
       </div>
     </div>
   </div>

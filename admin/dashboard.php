@@ -12,8 +12,8 @@ $totalOrders     = $db->query("SELECT COUNT(*) FROM orders")->fetchColumn();
 $pendingOrders   = $db->query("SELECT COUNT(*) FROM orders WHERE status='pending'")->fetchColumn();
 $inProgressOrders= $db->query("SELECT COUNT(*) FROM orders WHERE status='in-progress'")->fetchColumn();
 $completedOrders = $db->query("SELECT COUNT(*) FROM orders WHERE status='completed'")->fetchColumn();
-$todaySales      = $db->query("SELECT COALESCE(SUM(amount),0) FROM sales WHERE DATE(sale_date)=CURDATE()")->fetchColumn();
-$monthSales      = $db->query("SELECT COALESCE(SUM(amount),0) FROM sales WHERE MONTH(sale_date)=MONTH(CURDATE()) AND YEAR(sale_date)=YEAR(CURDATE())")->fetchColumn();
+$todaySales      = $db->query("SELECT COALESCE(SUM(amount),0) FROM sales WHERE sale_date::date=CURRENT_DATE")->fetchColumn();
+$monthSales      = $db->query("SELECT COALESCE(SUM(amount),0) FROM sales WHERE EXTRACT(MONTH FROM sale_date)=EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(YEAR FROM sale_date)=EXTRACT(YEAR FROM CURRENT_DATE)")->fetchColumn();
 $lowStockCount   = $db->query("SELECT COUNT(*) FROM fabrics WHERE quantity_yards <= reorder_level")->fetchColumn();
 $totalFabrics    = $db->query("SELECT COUNT(*) FROM fabrics")->fetchColumn();
 
@@ -34,10 +34,11 @@ $lowStockFabrics = $db->query("
 
 // ─── Monthly Sales for Chart ──────────────────────────────
 $monthlySales = $db->query("
-    SELECT DATE_FORMAT(sale_date,'%b') AS mon, SUM(amount) AS total
+    SELECT TO_CHAR(sale_date,'Mon') AS mon, SUM(amount) AS total
     FROM sales
-    WHERE sale_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-    GROUP BY MONTH(sale_date) ORDER BY sale_date
+    WHERE sale_date >= CURRENT_DATE - INTERVAL '6 months'
+    GROUP BY EXTRACT(MONTH FROM sale_date), TO_CHAR(sale_date,'Mon'), EXTRACT(YEAR FROM sale_date)
+    ORDER BY MAX(sale_date)
 ")->fetchAll();
 $chartLabels = json_encode(array_column($monthlySales, 'mon'));
 $chartData   = json_encode(array_column($monthlySales, 'total'));

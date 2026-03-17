@@ -33,7 +33,7 @@ if (isset($_GET['export'])) {
         fclose($out); exit;
     }
     if ($type === 'orders') {
-        $rows = $db->prepare("SELECT o.id, u.name AS customer, s.name AS style, f.name AS fabric, o.quantity, o.status, o.total_amount, o.created_at FROM orders o JOIN customers c ON o.customer_id=c.id JOIN users u ON c.user_id=u.id LEFT JOIN styles s ON o.style_id=s.id LEFT JOIN fabrics f ON o.fabric_id=f.id WHERE DATE(o.created_at) BETWEEN ? AND ? ORDER BY o.created_at");
+        $rows = $db->prepare("SELECT o.id, u.name AS customer, s.name AS style, f.name AS fabric, o.quantity, o.status, o.total_amount, o.created_at FROM orders o JOIN customers c ON o.customer_id=c.id JOIN users u ON c.user_id=u.id LEFT JOIN styles s ON o.style_id=s.id LEFT JOIN fabrics f ON o.fabric_id=f.id WHERE o.created_at::date BETWEEN ? AND ? ORDER BY o.created_at");
         $rows->execute([$from,$to]);
         $data = $rows->fetchAll();
         header('Content-Type: text/csv');
@@ -47,9 +47,9 @@ if (isset($_GET['export'])) {
 
 // Stats for display
 $totalSales = $db->prepare("SELECT COALESCE(SUM(amount),0) FROM sales WHERE sale_date BETWEEN ? AND ?"); $totalSales->execute([$from,$to]);
-$totalOrders= $db->prepare("SELECT COUNT(*) FROM orders WHERE DATE(created_at) BETWEEN ? AND ?");       $totalOrders->execute([$from,$to]);
-$newCusts   = $db->prepare("SELECT COUNT(*) FROM users WHERE role='customer' AND DATE(created_at) BETWEEN ? AND ?"); $newCusts->execute([$from,$to]);
-$completedO = $db->prepare("SELECT COUNT(*) FROM orders WHERE status='completed' AND DATE(updated_at) BETWEEN ? AND ?"); $completedO->execute([$from,$to]);
+$totalOrders= $db->prepare("SELECT COUNT(*) FROM orders WHERE created_at::date BETWEEN ? AND ?");       $totalOrders->execute([$from,$to]);
+$newCusts   = $db->prepare("SELECT COUNT(*) FROM users WHERE role='customer' AND created_at::date BETWEEN ? AND ?"); $newCusts->execute([$from,$to]);
+$completedO = $db->prepare("SELECT COUNT(*) FROM orders WHERE status='completed' AND updated_at::date BETWEEN ? AND ?"); $completedO->execute([$from,$to]);
 
 $bySyle = $db->query("SELECT s.name, COUNT(o.id) AS cnt FROM orders o LEFT JOIN styles s ON o.style_id=s.id GROUP BY o.style_id ORDER BY cnt DESC LIMIT 5")->fetchAll();
 $byPay  = $db->query("SELECT payment_method, SUM(amount) AS total FROM sales GROUP BY payment_method")->fetchAll();

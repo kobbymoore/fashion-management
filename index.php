@@ -223,8 +223,8 @@ $completedOrders= getDB()->query("SELECT COUNT(*) FROM orders WHERE status='comp
         <strong style="color:white;font-size:.85rem;">Contact Us</strong>
         <ul class="list-unstyled mt-2" style="font-size:.85rem;">
           <li><i class="bi bi-geo-alt me-2" style="color:var(--pink-400);"></i>Kumasi, Ashanti Region, Ghana</li>
-          <li class="mt-1"><i class="bi bi-telephone me-2" style="color:var(--pink-400);"></i>+233 200 000 001</li>
-          <li class="mt-1"><i class="bi bi-envelope me-2" style="color:var(--pink-400);"></i>hello@fashionstudio.gh</li>
+          <li class="mt-1"><i class="bi bi-telephone me-2" style="color:var(--pink-400);"></i>+233 553 423 057</li>
+          <li class="mt-1"><i class="bi bi-envelope me-2" style="color:var(--pink-400);"></i>kobbymoore02@gmail.com</li>
         </ul>
       </div>
       <div class="col-md-3">
