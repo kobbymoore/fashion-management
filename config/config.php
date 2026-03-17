@@ -9,8 +9,8 @@ define('SITE_TAGLINE',  'Curated Looks, Styled With Intention');
 define('BASE_URL',      (isset($_SERVER['HTTP_HOST']) ? (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'] : ''));
 
 // ─── Database (Support for Environment Variables on Vercel) ──
-define('DB_HOST',    getenv('DB_HOST')    ?: 'db.ggravbyayzmaiksobylv.supabase.co');
-define('DB_PORT',    getenv('DB_PORT')    ?: '6543');
+define('DB_HOST',    getenv('DB_HOST')    ?: 'db.vdwqsgwfxealmwrwhexy.supabase.co');
+define('DB_PORT',    getenv('DB_PORT')    ?: '5432');
 define('DB_NAME',    getenv('DB_NAME')    ?: 'postgres');
 define('DB_USER',    getenv('DB_USER')    ?: 'postgres');
 define('DB_PASS',    getenv('DB_PASS')    ?: 'KobbyMoore02@');
