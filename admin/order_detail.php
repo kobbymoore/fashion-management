@@ -22,7 +22,7 @@ if (!$order) { setFlash('danger','Order not found.'); redirect(BASE_URL.'/admin/
 $activePage = 'orders';
 $pageTitle  = "Order #$id";
 $breadcrumb = ['Orders'=>BASE_URL.'/admin/orders.php', "Order #$id"=>null];
-$staff = $db->query("SELECT id,name FROM users WHERE role IN('staff','admin') AND is_active=1")->fetchAll();
+$staff = $db->query("SELECT id,name FROM users WHERE role IN('staff','admin') AND is_active=TRUE")->fetchAll();
 $sale  = $db->prepare("SELECT * FROM sales WHERE order_id=?"); $sale->execute([$id]); $sale = $sale->fetch();
 $measure = $db->prepare("SELECT m.* FROM measurements m JOIN orders_measurements om ON om.measurement_id=m.id WHERE om.order_id=? UNION SELECT m.* FROM measurements m WHERE m.customer_id=? ORDER BY created_at DESC LIMIT 1");
 

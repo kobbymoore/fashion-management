@@ -34,7 +34,7 @@ $hasMeasure = (bool)$hasMeasure->fetch();
 $notifs = $db->prepare("SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 5");
 $notifs->execute([$user['id']]);
 $notifs = $notifs->fetchAll();
-$db->prepare("UPDATE notifications SET is_read=1 WHERE user_id=?")->execute([$user['id']]);
+$db->prepare("UPDATE notifications SET is_read=TRUE WHERE user_id=?")->execute([$user['id']]);
 
 require_once __DIR__ . '/../includes/customer_header.php';
 ?>

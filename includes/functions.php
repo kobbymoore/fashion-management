@@ -81,7 +81,7 @@ function unreadCount(): int {
     if (!isLoggedIn()) return 0;
     $db   = getDB();
     $user = currentUser();
-    $stmt = $db->prepare('SELECT COUNT(*) FROM notifications WHERE user_id=? AND is_read=0');
+    $stmt = $db->prepare('SELECT COUNT(*) FROM notifications WHERE user_id=? AND is_read=FALSE');
     $stmt->execute([$user['id']]);
     return (int)$stmt->fetchColumn();
 }

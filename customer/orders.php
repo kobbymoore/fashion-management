@@ -14,7 +14,7 @@ $customer = $custStmt->fetch();
 if (!$customer) redirect(BASE_URL.'/auth/logout.php');
 $cid = $customer['id'];
 
-$styles  = $db->query("SELECT * FROM styles WHERE is_active=1 ORDER BY name")->fetchAll();
+$styles  = $db->query("SELECT * FROM styles WHERE is_active=TRUE ORDER BY name")->fetchAll();
 $fabrics = $db->query("SELECT * FROM fabrics WHERE quantity_yards > 0 ORDER BY name")->fetchAll();
 
 $errors = [];
@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         auditLog('place_order',"Customer #$cid placed order #$newId");
 
         // Notify staff
-        $staffUsers = $db->query("SELECT id FROM users WHERE role IN('staff','admin') AND is_active=1")->fetchAll();
+        $staffUsers = $db->query("SELECT id FROM users WHERE role IN('staff','admin') AND is_active=TRUE")->fetchAll();
         foreach ($staffUsers as $su) addNotification($su['id'], "New order #$newId received from ".clean($user['name']).".");
 
         setFlash('success',"Order #$newId placed successfully! Our team will review it shortly.");

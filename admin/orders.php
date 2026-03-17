@@ -66,7 +66,7 @@ $stmt = $db->prepare("
 $stmt->execute($params);
 $orders = $stmt->fetchAll();
 
-$staff = $db->query("SELECT id,name FROM users WHERE role IN('staff','admin') AND is_active=1")->fetchAll();
+$staff = $db->query("SELECT id,name FROM users WHERE role IN('staff','admin') AND is_active=TRUE")->fetchAll();
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
