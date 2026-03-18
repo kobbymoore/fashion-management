@@ -51,7 +51,7 @@ $totalOrders= $db->prepare("SELECT COUNT(*) FROM orders WHERE created_at::date B
 $newCusts   = $db->prepare("SELECT COUNT(*) FROM users WHERE role='customer' AND created_at::date BETWEEN ? AND ?"); $newCusts->execute([$from,$to]);
 $completedO = $db->prepare("SELECT COUNT(*) FROM orders WHERE status='completed' AND updated_at::date BETWEEN ? AND ?"); $completedO->execute([$from,$to]);
 
-$bySyle = $db->query("SELECT s.name, COUNT(o.id) AS cnt FROM orders o LEFT JOIN styles s ON o.style_id=s.id GROUP BY o.style_id ORDER BY cnt DESC LIMIT 5")->fetchAll();
+$bySyle = $db->query("SELECT s.name, COUNT(o.id) AS cnt FROM orders o LEFT JOIN styles s ON o.style_id=s.id GROUP BY o.style_id, s.name ORDER BY cnt DESC LIMIT 5")->fetchAll();
 $byPay  = $db->query("SELECT payment_method, SUM(amount) AS total FROM sales GROUP BY payment_method")->fetchAll();
 $payLabels = json_encode(array_column($byPay,'payment_method'));
 $payData   = json_encode(array_column($byPay,'total'));

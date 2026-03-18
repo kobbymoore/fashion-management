@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/config/config.php'; // v1.1
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 
@@ -30,7 +30,7 @@ $completedOrders= getDB()->query("SELECT COUNT(*) FROM orders WHERE status='comp
 <!-- ─── NAVBAR ─── -->
 <nav class="public-navbar">
   <div class="container d-flex align-items-center justify-content-between">
-    <a class="navbar-brand" href="<?= BASE_URL ?>/index.php">
+    <a class="navbar-brand text-pink" href="<?= BASE_URL ?>/index.php">
       <i class="bi bi-scissors"></i> <?= SITE_NAME ?>
     </a>
     <div class="d-flex align-items-center gap-2">
@@ -51,15 +51,15 @@ $completedOrders= getDB()->query("SELECT COUNT(*) FROM orders WHERE status='comp
           <i class="bi bi-stars"></i> Ghana's Premium Fashion Studio
         </div>
         <h1 class="hero-title">
-          Discover Your<br><span>Perfect Style.</span>
+          Exquisite Fashion<br><span>For Everyone.</span>
         </h1>
         <p class="hero-subtitle">
-          Custom-tailored outfits crafted to your exact measurements. 
-          From elegant Kente gowns to modern Ankara jumpsuits — your vision, our craft.
+          Bespoke custom outfits for men and women, crafted to your exact measurements. 
+          From sharp Senator suits to elegant Gowns — your vision, our master craft.
         </p>
         <div class="hero-btns">
           <a href="<?= BASE_URL ?>/auth/register.php" class="btn btn-fashion btn-lg">
-            <i class="bi bi-bag-heart-fill me-2"></i>Start Your Order
+            <i class="bi bi-lock-fill me-2"></i>Start Your Order
           </a>
           <a href="#styles" class="btn btn-outline-light btn-lg">
             <i class="bi bi-eye me-2"></i>View Styles
@@ -85,7 +85,7 @@ $completedOrders= getDB()->query("SELECT COUNT(*) FROM orders WHERE status='comp
 </section>
 
 <!-- ─── STATS BAND ─── -->
-<section style="background:white;padding:2.5rem 0;border-bottom:1px solid var(--pink-100);">
+<section class="stats-band" style="background:white;padding:2.5rem 0;border-bottom:1px solid var(--pink-100);">
   <div class="container">
     <div class="row g-4 text-center">
       <?php $stats = [['bi-scissors','Expert Tailors','Every stitch by skilled hands'],['bi-rulers','Precise Measurements','Custom fit guaranteed'],['bi-bag-check','On-Time Delivery','We respect your deadlines'],['bi-stars','Premium Fabrics','Kente, Ankara, Satin & more']]; ?>
