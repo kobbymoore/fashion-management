@@ -24,24 +24,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
     $desc = trim($_POST['description'] ?? '');
     $price = (float)($_POST['base_price'] ?? 0);
+    $imgUrlInput = trim($_POST['image_url'] ?? '');
     $imgPath = $s['image_path'] ?? '';
 
     if (!$name) $errors[] = 'Style name is required.';
     if ($price <= 0) $errors[] = 'Base price must be greater than zero.';
 
-    // Handle Image Upload
-    if (isset($_FILES['style_image']) && $_FILES['style_image']['error'] === UPLOAD_ERR_OK) {
-        $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+    // Case 1: External URL provided
+    if ($imgUrlInput) {
+        $imgPath = $imgUrlInput;
+    } 
+    // Case 2: Hande Image Upload
+    elseif (isset($_FILES['style_image']) && $_FILES['style_image']['error'] === UPLOAD_ERR_OK) {
+        $allowed = ['jpg', 'jpeg', 'png', 'webp', 'jfif'];
         $ext = strtolower(pathinfo($_FILES['style_image']['name'], PATHINFO_EXTENSION));
         if (in_array($ext, $allowed)) {
             $newName = 'style_' . time() . '_' . rand(100, 999) . '.' . $ext;
             $uploadDir = __DIR__ . '/../assets/images/styles/';
-            if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
             
-            if (move_uploaded_file($_FILES['style_image']['tmp_name'], $uploadDir . $newName)) {
+            // Graceful check for read-only environments (Vercel)
+            if (!is_dir($uploadDir)) {
+                @mkdir($uploadDir, 0777, true);
+            }
+
+            if (@move_uploaded_file($_FILES['style_image']['tmp_name'], $uploadDir . $newName)) {
                 $imgPath = 'assets/images/styles/'  . $newName;
             } else {
-                $errors[] = 'Failed to save uploaded image.';
+                $errors[] = '<b>Storage Error:</b> The live server is "read-only" for security. Please use the <b>Image URL</b> field below, or ask Antigravity to sync your files for you.';
             }
         } else {
             $errors[] = 'Invalid image format. Allowed: ' . implode(', ', $allowed);
@@ -112,8 +121,12 @@ require_once __DIR__ . '/../includes/header.php';
                   <img id="imgPreview" style="display:none; max-width:100%; max-height:250px; border-radius:8px;">
                 <?php endif; ?>
               </div>
-              <input type="file" class="form-control form-control-sm" name="style_image" id="styleImageInput" accept="image/*">
-              <small class="text-muted d-block mt-2">Recommended: Square aspect ratio (e.g. 800x800px). JPG, PNG, WEBP allowed.</small>
+              <input type="file" class="form-control form-control-sm mb-3" name="style_image" id="styleImageInput" accept="image/*">
+              
+              <label class="form-label fw-600 small">OR Image URL (Cloud/External)</label>
+              <input type="url" class="form-control form-control-sm" name="image_url" placeholder="https://example.com/image.jpg" value="<?= (strpos($imgPath, 'http') === 0) ? clean($imgPath) : '' ?>">
+              
+              <small class="text-muted d-block mt-2"><b>Note:</b> Direct uploads only work on your local computer. On the live site, please use a URL or ask Antigravity to sync your files.</small>
             </div>
           </div>
         </div>
