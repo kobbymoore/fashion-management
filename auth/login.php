@@ -107,15 +107,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <i class="bi bi-person-plus me-2"></i>Create Account
       </a>
 
-      <div class="auth-demo-info mt-4">
-        <p class="text-muted small text-center mb-1"><strong>Demo Credentials:</strong></p>
-        <div class="demo-creds">
-          <span><i class="bi bi-shield-fill-check text-danger"></i> Admin: admin@fashionstudio.gh</span>
-          <span><i class="bi bi-person-badge-fill text-primary"></i> Staff: staff@fashionstudio.gh</span>
-          <span><i class="bi bi-person-fill text-success"></i> Customer: ama@example.com</span>
-          <em class="text-muted">Password for all: Admin@1234</em>
-        </div>
-      </div>
     </div>
   </div>
 </div>
