@@ -109,13 +109,16 @@ $completedOrders= getDB()->query("SELECT COUNT(*) FROM orders WHERE status='comp
       <p class="text-muted">Every piece is crafted exclusively for you, using your measurements and preferred fabrics.</p>
     </div>
     <div class="row g-4">
-      <?php
-      $emojis = ['👗','👘','🥻','🩱','👔','🧥'];
-      foreach ($styles as $i => $s): ?>
+      <?php foreach ($styles as $i => $s): 
+        $img = !empty($s['image_path']) ? $s['image_path'] : 'assets/images/styles/placeholder.png';
+      ?>
         <div class="col-6 col-md-4">
           <div class="style-card">
-            <div style="height:200px;background:linear-gradient(135deg,var(--pink-100),var(--pink-200),var(--pink-300));display:flex;align-items:center;justify-content:center;font-size:4rem;">
-              <?= $emojis[$i % count($emojis)] ?>
+            <div class="style-card-img-wrapper">
+              <img src="<?= BASE_URL ?>/<?= $img ?>" alt="<?= clean($s['name']) ?>">
+              <div class="style-card-overlay">
+                <span class="badge bg-pink text-white">Bespoke</span>
+              </div>
             </div>
             <div class="style-card-body">
               <div class="style-card-title"><?= clean($s['name']) ?></div>
