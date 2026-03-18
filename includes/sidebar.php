@@ -62,6 +62,9 @@ $notifCount = unreadCount();
     <a href="<?= BASE_URL ?>/admin/reports.php" class="nav-link <?= ($activePage??'')==='reports'?'active':'' ?>">
       <i class="bi bi-file-earmark-bar-graph-fill"></i> Reports
     </a>
+    <a href="<?= BASE_URL ?>/admin/styles.php" class="nav-link <?= ($activePage??'')==='styles'?'active':'' ?>">
+      <i class="bi bi-stars"></i> Manage Catalogue
+    </a>
 
     <?php if (hasRole('admin')): ?>
     <div class="nav-section-label">Admin</div>
