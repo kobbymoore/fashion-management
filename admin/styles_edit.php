@@ -25,13 +25,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $desc = trim($_POST['description'] ?? '');
     $price = (float)($_POST['base_price'] ?? 0);
     $imgUrlInput = trim($_POST['image_url'] ?? '');
+    $gallerySelect = trim($_POST['gallery_image'] ?? '');
     $imgPath = $s['image_path'] ?? '';
 
     if (!$name) $errors[] = 'Style name is required.';
     if ($price <= 0) $errors[] = 'Base price must be greater than zero.';
 
-    // Case 1: External URL provided
-    if ($imgUrlInput) {
+    // Case 1: Gallery selection (Prioritized)
+    if ($gallerySelect) {
+        $imgPath = $gallerySelect;
+    }
+    // Case 2: External URL provided
+    elseif ($imgUrlInput) {
         $imgPath = $imgUrlInput;
     } 
     // Case 2: Hande Image Upload
@@ -110,9 +115,28 @@ require_once __DIR__ . '/../includes/header.php';
           <div class="col-md-4 border-start">
             <div class="mb-3">
               <label class="form-label fw-600">Style Image</label>
+              
+              <div class="mb-3">
+                <label class="form-label small fw-600">Select from existing gallery:</label>
+                <select name="gallery_image" class="form-select form-select-sm" id="gallerySelect">
+                    <option value="">-- Or choose from gallery --</option>
+                    <?php 
+                        $files = scandir(__DIR__ . '/../assets/images/styles/');
+                        foreach ($files as $f): 
+                            if ($f === '.' || $f === '..') continue;
+                            $path = 'assets/images/styles/' . $f;
+                            $sel = ($imgPath === $path) ? 'selected' : '';
+                            echo "<option value=\"$path\" $sel>$f</option>";
+                        endforeach;
+                    ?>
+                </select>
+              </div>
+
               <div class="style-image-preview mb-3 p-2 border rounded text-center bg-light" style="min-height:200px; display:flex; align-items:center; justify-content:center;">
-                <?php if (!empty($s['image_path'])): ?>
-                  <img src="<?= BASE_URL ?>/<?= $s['image_path'] ?>" id="imgPreview" style="max-width:100%; max-height:250px; border-radius:8px;">
+                <?php if (!empty($s['image_path'])): 
+                  $displayImg = (strpos($s['image_path'], 'http') === 0) ? $s['image_path'] : BASE_URL . '/' . $s['image_path'];
+                ?>
+                  <img src="<?= $displayImg ?>" id="imgPreview" style="max-width:100%; max-height:250px; border-radius:8px;">
                 <?php else: ?>
                   <div id="noImg" class="text-muted small">
                     <i class="bi bi-image fs-1 d-block mb-1"></i>
@@ -125,8 +149,6 @@ require_once __DIR__ . '/../includes/header.php';
               
               <label class="form-label fw-600 small">OR Image URL (Cloud/External)</label>
               <input type="url" class="form-control form-control-sm" name="image_url" placeholder="https://example.com/image.jpg" value="<?= (strpos($imgPath, 'http') === 0) ? clean($imgPath) : '' ?>">
-              
-              <small class="text-muted d-block mt-2"><b>Note:</b> Direct uploads only work on your local computer. On the live site, please use a URL or ask Antigravity to sync your files.</small>
             </div>
           </div>
         </div>
@@ -150,6 +172,18 @@ document.getElementById('styleImageInput').onchange = function (evt) {
         preview.src = URL.createObjectURL(file);
         preview.style.display = 'block';
         if(noImg) noImg.style.display = 'none';
+        document.getElementById('gallerySelect').value = ""; // Clear gallery if upload chosen
+    }
+}
+
+document.getElementById('gallerySelect').onchange = function (evt) {
+    if (this.value) {
+        const preview = document.getElementById('imgPreview');
+        const noImg = document.getElementById('noImg');
+        preview.src = '<?= BASE_URL ?>/' + this.value;
+        preview.style.display = 'block';
+        if(noImg) noImg.style.display = 'none';
+        document.getElementById('styleImageInput').value = ""; // Clear upload if gallery chosen
     }
 }
 </script>

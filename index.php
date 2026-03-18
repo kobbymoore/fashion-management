@@ -115,7 +115,10 @@ $completedOrders= getDB()->query("SELECT COUNT(*) FROM orders WHERE status='comp
         <div class="col-6 col-md-4">
           <div class="style-card">
             <div class="style-card-img-wrapper">
-              <img src="<?= BASE_URL ?>/<?= $img ?>" alt="<?= clean($s['name']) ?>">
+              <?php 
+                $displayImg = (strpos($img, 'http') === 0) ? $img : BASE_URL . '/' . $img;
+              ?>
+              <img src="<?= $displayImg ?>" alt="<?= clean($s['name']) ?>">
               <div class="style-card-overlay">
                 <span class="badge bg-pink text-white">Bespoke</span>
               </div>

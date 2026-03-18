@@ -49,8 +49,12 @@ require_once __DIR__ . '/../includes/header.php';
           <tr>
             <td style="width: 80px;">
               <div class="style-preview-mini" style="width:60px; height:60px; border-radius:8px; overflow:hidden; background:var(--pink-50);">
+                <?php 
+                  $img = !empty($s['image_path']) ? $s['image_path'] : 'assets/images/styles/placeholder.png';
+                  $displayImg = (strpos($img, 'http') === 0) ? $img : BASE_URL . '/' . $img;
+                ?>
                 <?php if (!empty($s['image_path'])): ?>
-                  <img src="<?= BASE_URL ?>/<?= $s['image_path'] ?>" alt="" style="width:100%; height:100%; object-fit:cover;">
+                  <img src="<?= $displayImg ?>" alt="" style="width:100%; height:100%; object-fit:cover;">
                 <?php else: ?>
                   <div class="d-flex align-items-center justify-content-center h-100 text-pink-200">
                     <i class="bi bi-image" style="font-size:1.5rem;"></i>
