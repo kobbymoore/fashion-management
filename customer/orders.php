@@ -75,8 +75,12 @@ require_once __DIR__ . '/../includes/customer_header.php';
             <input type="radio" name="style_id_sel" id="style_<?= $s['id'] ?>" value="<?= $s['id'] ?>" class="d-none style-radio"
                    <?= (($_POST['style_id'] ?? 0) == $s['id']) ? 'checked' : '' ?>>
             <div class="style-card style-selectable" data-id="<?= $s['id'] ?>" data-price="<?= $s['base_price'] ?>">
-              <div style="height:130px;background:linear-gradient(135deg,var(--pink-100),var(--pink-200));display:flex;align-items:center;justify-content:center;font-size:3rem;">
-                <?= ['👗','👘','🥻','🩱','👔','🧥'][array_search($s,$styles)%6] ?>
+              <div class="style-card-img-container" style="height:150px; overflow:hidden; background:var(--pink-50);">
+                <?php 
+                  $img = !empty($s['image_path']) ? $s['image_path'] : 'assets/images/styles/placeholder.png';
+                  $displayImg = (strpos($img, 'http') === 0) ? $img : BASE_URL . '/' . $img;
+                ?>
+                <img src="<?= $displayImg ?>" alt="<?= clean($s['name']) ?>" style="width:100%; height:100%; object-fit:cover;">
               </div>
               <div class="style-card-body">
                 <div class="style-card-title"><?= clean($s['name']) ?></div>
