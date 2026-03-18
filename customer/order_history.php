@@ -23,6 +23,14 @@ $stmt = $db->prepare("
     WHERE o.customer_id=? $where ORDER BY o.created_at DESC LIMIT {$pg['perPage']} OFFSET {$pg['offset']}
 ");
 $stmt->execute($params); $orders = $stmt->fetchAll();
+
+// Add payment fields if missing (Schema Check)
+$res = $db->query("SELECT column_name FROM information_schema.columns WHERE table_name='orders' AND column_name='payment_status'");
+if (!$res->fetch()) {
+    $db->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) DEFAULT 'unpaid'");
+    $db->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS tx_ref VARCHAR(100) UNIQUE");
+    $db->exec("ALTER TABLE sales ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(100)");
+}
 require_once __DIR__ . '/../includes/customer_header.php';
 ?>
 
@@ -62,6 +70,14 @@ require_once __DIR__ . '/../includes/customer_header.php';
             <?= statusBadge($o['status']) ?>
             <div class="fw-700 fs-5 text-pink mt-1"><?= ghcFormat($o['total_amount']) ?></div>
             <div class="text-muted" style="font-size:.75rem;">Qty: <?= $o['quantity'] ?></div>
+            
+            <?php if ($o['status'] === 'approved' && ($o['payment_status'] ?? 'unpaid') !== 'paid'): ?>
+              <a href="<?= BASE_URL ?>/customer/pay.php?id=<?= $o['id'] ?>" class="btn btn-sm btn-fashion mt-2">
+                <i class="bi bi-credit-card me-1"></i>Pay Now
+              </a>
+            <?php elseif (($o['payment_status'] ?? '') === 'paid'): ?>
+              <div class="badge bg-success mt-2"><i class="bi bi-check-circle me-1"></i>Paid Online</div>
+            <?php endif; ?>
           </div>
         </div>
 

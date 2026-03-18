@@ -40,6 +40,10 @@ if (APP_DEBUG) {
     ini_set('display_errors', 0);
 }
 
+// ─── Paystack Integration (Ghana) ───────────────────────────
+define('PAYSTACK_PUBLIC_KEY', getenv('PAYSTACK_PUBLIC_KEY') ?: 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+define('PAYSTACK_SECRET_KEY', getenv('PAYSTACK_SECRET_KEY') ?: 'sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+
 // ─── Start Session ───────────────────────────────────────────
 if (session_status() === PHP_SESSION_NONE) {
     session_name(SESSION_NAME);

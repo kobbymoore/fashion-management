@@ -245,7 +245,7 @@ $completedOrders= getDB()->query("SELECT COUNT(*) FROM orders WHERE status='comp
     <hr style="border-color:rgba(255,255,255,.1);">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2" style="font-size:.8rem;">
       <span>&copy; <?= date('Y') ?> <?= SITE_NAME ?>. All rights reserved.</span>
-      <span>Designed with ❤️ in Ghana | Running on Supabase & Vercel</span>
+      <span>Designed with ❤️ in Ghana</span>
     </div>
   </div>
 </footer>
