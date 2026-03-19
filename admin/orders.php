@@ -155,7 +155,7 @@ require_once __DIR__ . '/../includes/header.php';
               <?php endif; ?>
               <?= clean($o['style_name'] ?? 'Bespoke Order') ?>
             </td>
-            <td class="small"><?= clean($o['fabric_name'] ?? '—') ?></td>
+            <td class="small"><?= $o['fabric_id'] ? clean($o['fabric_name']) : 'Custom: '.clean($o['custom_fabric'] ?? '—') ?></td>
             <td><?= $o['quantity'] ?></td>
             <td class="small"><?= clean($o['assigned_name'] ?? '—') ?></td>
             <td><?= statusBadge($o['status']) ?></td>

@@ -91,7 +91,7 @@ require_once __DIR__ . '/../includes/customer_header.php';
                 <span class="fw-bold"><?= clean($item['style_name'] ?? 'Custom Design') ?></span>
                 <?php if ($item['is_custom']): ?><span class="badge bg-purple-100 text-purple-700 mx-1">Custom</span><?php endif; ?>
                 <div class="text-muted smaller">
-                    <i class="bi bi-layers me-1"></i><?= clean($item['fabric_name'] ?? '—') ?> (<?= clean($item['fabric_color'] ?? '') ?>)
+                    <i class="bi bi-layers me-1"></i><?= $item['fabric_id'] ? clean($item['fabric_name']).' ('.clean($item['fabric_color']).')' : 'Custom: '.clean($item['custom_fabric'] ?? '—') ?>
                     · Qty: <?= $item['quantity'] ?>
                 </div>
               </div>

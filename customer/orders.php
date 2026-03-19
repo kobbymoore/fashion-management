@@ -52,7 +52,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Please select at least one style or a custom design.';
     } else {
         $cid = $customer['id'];
-        $fabricId = (int)($_POST['fabric_id'] ?? 0);
+        $fabricIdRaw = $_POST['fabric_id'] ?? '';
+        $fabricId = ($fabricIdRaw === 'other') ? null : (int)$fabricIdRaw;
+        $customFabric = ($fabricIdRaw === 'other') ? trim($_POST['custom_fabric_details'] ?? '') : null;
+        
         $notes = trim($_POST['notes'] ?? '');
         $sBust = $_POST['self_bust'] ?: null;
         $sWaist = $_POST['self_waist'] ?: null;
@@ -73,8 +76,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $custom_desc = trim($_POST['custom_description'] ?? '');
                 $custom_img_url = trim($_POST['custom_image_url'] ?? '');
                 
-                $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, custom_voice, custom_description, custom_image_url, payment_method, payment_status, payment_reference, batch_id) VALUES(?,?,?,?,'pending',?,?,?,?,?,0.00, TRUE, ?, ?, ?, ?, ?, ?, ?)")
-                   ->execute([$cid, null, $fabricId, $custom_qty, $notes, $sBust, $sWaist, $sHips, $sHeight, $custom_voice, $custom_desc, $custom_img_url, $pay_method, $pay_status, $pay_ref, $batch_id]);
+                $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,custom_fabric,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, custom_voice, custom_description, custom_image_url, payment_method, payment_status, payment_reference, batch_id) VALUES(?,?,?,?,?,'pending',?,?,?,?,?,0.00, TRUE, ?, ?, ?, ?, ?, ?, ?)")
+                   ->execute([$cid, null, $fabricId, $customFabric, $custom_qty, $notes, $sBust, $sWaist, $sHips, $sHeight, $custom_voice, $custom_desc, $custom_img_url, $pay_method, $pay_status, $pay_ref, $batch_id]);
             }
 
             // 2. Handle Standard Styles
@@ -89,8 +92,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sPrice = (float)$sStmt->fetchColumn();
                 $itemTotal = $sPrice * $qty;
 
-                $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, payment_method, payment_status, payment_reference, batch_id) VALUES(?,?,?,?,'pending',?,?,?,?,?,?, FALSE, ?, ?, ?, ?)")
-                   ->execute([$cid, $sid, $fabricId, $qty, $notes, $sBust, $sWaist, $sHips, $sHeight, $itemTotal, $pay_method, $pay_status, $pay_ref, $batch_id]);
+                $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,custom_fabric,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, payment_method, payment_status, payment_reference, batch_id) VALUES(?,?,?,?,?,'pending',?,?,?,?,?,?, FALSE, ?, ?, ?, ?)")
+                   ->execute([$cid, $sid, $fabricId, $customFabric, $qty, $notes, $sBust, $sWaist, $sHips, $sHeight, $itemTotal, $pay_method, $pay_status, $pay_ref, $batch_id]);
             }
 
             $db->commit();
@@ -222,14 +225,19 @@ require_once __DIR__ . '/../includes/customer_header.php';
           <div class="row g-3">
             <div class="col-sm-8">
               <label class="form-label fw-600">Fabric *</label>
-              <select class="form-select" name="fabric_id" required>
+              <select class="form-select" name="fabric_id" id="fabricSelector" required onchange="toggleCustomFabric(this.value)">
                 <option value="">— Select Fabric for this Batch —</option>
                 <?php foreach ($fabrics as $f): ?>
-                  <option value="<?= $f['id'] ?>" <?= (($_POST['fabric_id']??0)==$f['id'])?'selected':'' ?>>
+                  <option value="<?= $f['id'] ?>" <?= (($fabricIdRaw??0)==$f['id'])?'selected':'' ?>>
                     <?= clean($f['name']) ?> (<?= clean($f['color']) ?>) – <?= $f['quantity_yards'] ?> yds left
                   </option>
                 <?php endforeach; ?>
+                <option value="other" <?= (($fabricIdRaw??'')==='other')?'selected':'' ?>>Other / My own fabric (Specify...)</option>
               </select>
+            </div>
+            <div id="customFabricGroup" class="col-12 mt-2" style="display: <?= (($fabricIdRaw??'')==='other')?'block':'none' ?>;">
+              <label class="form-label fw-600">Specify Fabric Details</label>
+              <textarea class="form-control" name="custom_fabric_details" rows="2" placeholder="e.g. Bringing my own lace, or specify color/type preference..."><?= clean($_POST['custom_fabric_details']??'') ?></textarea>
             </div>
             <div class="col-sm-4 d-none">
               <!-- Removed Global Quantity -->
@@ -367,6 +375,10 @@ function updateQty(id, delta) {
         cart[id] = Math.max(1, (cart[id] || 1) + delta);
     }
     updateCartUI();
+}
+
+function toggleCustomFabric(val) {
+    document.getElementById('customFabricGroup').style.display = (val === 'other') ? 'block' : 'none';
 }
 
 function updateCartUI() {
