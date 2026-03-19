@@ -50,7 +50,8 @@ function currentUser(): ?array {
 }
 
 function isLoggedIn(): bool {
-    return isset($_SESSION['user']);
+    // Basic check + ensure the user array has the expected ID
+    return isset($_SESSION['user']) && !empty($_SESSION['user']['id']);
 }
 
 function hasRole(string $role): bool {

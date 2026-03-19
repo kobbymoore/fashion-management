@@ -1,4 +1,5 @@
 <?php
+ob_start(); // Prevent "Headers already sent" errors
 /**
  * Fashion Management System – Application Configuration
  */
@@ -6,9 +7,18 @@
 // ─── Site Identity ───────────────────────────────────────────
 define('SITE_NAME',     'Fashion Studio GH');
 define('SITE_TAGLINE',  'Curated Looks, Styled With Intention');
-// Use a relative root by default, or an environment variable if defined.
-// This ensures that assets starting with BASE_URL/assets/ work as /assets/
-define('BASE_URL', getenv('BASE_URL') ?: ''); 
+// Portable BASE_URL detection (supports subdirectories on XAMPP)
+if (!defined('BASE_URL')) {
+    $envBase = getenv('BASE_URL');
+    if ($envBase !== false) {
+        define('BASE_URL', $envBase);
+    } else {
+        $physicalRoot = str_replace(['\\', '/config'], ['', ''], __DIR__);
+        $docRoot = str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT'] ?? '');
+        $urlPath = str_replace($docRoot, '', str_replace('\\', '/', $physicalRoot));
+        define('BASE_URL', rtrim($urlPath, '/'));
+    }
+}
 
 // ─── Database (Support for Environment Variables on Vercel) ──
 define('DB_HOST',    getenv('DB_HOST')    ?: 'aws-1-eu-west-1.pooler.supabase.com');
@@ -47,5 +57,12 @@ define('PAYSTACK_SECRET_KEY', getenv('PAYSTACK_SECRET_KEY') ?: 'sk_test_xxxxxxxx
 // ─── Start Session ───────────────────────────────────────────
 if (session_status() === PHP_SESSION_NONE) {
     session_name(SESSION_NAME);
+    // Secure cookie path to prevent conflicts and leakage
+    session_set_cookie_params([
+        'lifetime' => SESSION_TIMEOUT,
+        'path'     => BASE_URL ?: '/',
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
     session_start();
 }
