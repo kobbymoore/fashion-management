@@ -51,6 +51,8 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
             $styleRow = $db->prepare("SELECT base_price FROM styles WHERE id=?");
             $styleRow->execute([$styleId]); $styleRow = $styleRow->fetch();
         }
+        $total = ($styleId > 0 && $styleRow) ? ($styleRow['base_price'] * $qty) : 0;
+        
         $is_custom = ($styleId == -1) ? 1 : 0;
         $custom_voice = $_POST['custom_voice_base64'] ?? null;
         $custom_desc = trim($_POST['custom_description'] ?? '');
