@@ -18,13 +18,15 @@ $styles  = $db->query("SELECT * FROM styles WHERE is_active=TRUE ORDER BY name")
 $fabrics = $db->query("SELECT * FROM fabrics WHERE quantity_yards > 0 ORDER BY name")->fetchAll();
 
 // Add custom order fields if missing (Schema Check) - Safe Migration
-$res = $db->query("SELECT column_name FROM information_schema.columns WHERE table_name='orders' AND column_name='is_custom'");
-if (!$res->fetch()) {
-    $db->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_custom BOOLEAN DEFAULT FALSE");
-    $db->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS custom_image VARCHAR(255)");
-    $db->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS custom_voice VARCHAR(255)");
-    $db->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS custom_description TEXT");
-    $db->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS custom_image_url TEXT");
+$checkCols = ['is_custom','custom_image','custom_voice','custom_description','custom_image_url'];
+foreach ($checkCols as $col) {
+    $res = $db->prepare("SELECT column_name FROM information_schema.columns WHERE table_name='orders' AND column_name=?");
+    $res->execute([$col]);
+    if (!$res->fetch()) {
+        $sql = "ALTER TABLE orders ADD COLUMN IF NOT EXISTS $col " . ($col === 'is_custom' ? "BOOLEAN DEFAULT FALSE" : "TEXT");
+        if ($col === 'custom_image' || $col === 'custom_voice') $sql = "ALTER TABLE orders ADD COLUMN IF NOT EXISTS $col VARCHAR(255)";
+        $db->exec($sql);
+    }
 }
 
 $errors = [];
