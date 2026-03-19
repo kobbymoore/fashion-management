@@ -21,7 +21,7 @@ $page   = max(1,(int)($_GET['page']??1));
 $perPage = 20;
 $where  = 'WHERE 1=1';
 $params = [];
-if ($search) { $where .= ' AND (name LIKE ? OR fabric_type LIKE ? OR supplier LIKE ?)'; $params = array_merge($params,["%$search%","%$search%","%$search%"]); }
+if ($search) { $where .= ' AND (name ILIKE ? OR fabric_type ILIKE ? OR supplier ILIKE ?)'; $params = array_merge($params,["%$search%","%$search%","%$search%"]); }
 if ($filter === 'low') { $where .= ' AND quantity_yards <= reorder_level'; }
 $total = $db->prepare("SELECT COUNT(*) FROM fabrics $where"); $total->execute($params);
 $totalCount = (int)$total->fetchColumn();

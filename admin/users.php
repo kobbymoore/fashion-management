@@ -19,7 +19,7 @@ require_once __DIR__ . '/../includes/header.php';
 
 <div class="page-header">
   <div><h3><i class="bi bi-person-badge-fill text-pink me-2"></i>Manage Users</h3><div class="subtitle">System accounts and roles</div></div>
-  <a href="<?= BASE_URL ?>/admin/customer_edit.php" class="btn btn-fashion"><i class="bi bi-plus-lg me-2"></i>Add User</a>
+  <a href="<?= BASE_URL ?>/admin/user_form.php" class="btn btn-fashion"><i class="bi bi-person-plus-fill me-2"></i>Add Team Member</a>
 </div>
 
 <div class="card-studio">
@@ -44,7 +44,7 @@ require_once __DIR__ . '/../includes/header.php';
             <td class="small text-muted"><?= date('M j, Y', strtotime($u['created_at'])) ?></td>
             <td>
               <div class="d-flex gap-1">
-                <a href="<?= BASE_URL ?>/admin/customer_edit.php?id=<?= $u['id'] ?>" class="btn btn-sm btn-outline-fashion"><i class="bi bi-pencil"></i></a>
+                <a href="<?= BASE_URL ?>/admin/user_form.php?id=<?= $u['id'] ?>" class="btn btn-sm btn-outline-fashion"><i class="bi bi-pencil"></i></a>
                 <?php if ($u['id'] != currentUser()['id']): ?>
                 <a href="?toggle=<?= $u['id'] ?>" class="btn btn-sm <?= $u['is_active']?'btn-outline-warning':'btn-outline-success' ?>"
                    data-confirm="<?= $u['is_active']?'Deactivate':'Activate' ?> this user?">

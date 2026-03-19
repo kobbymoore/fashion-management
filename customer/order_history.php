@@ -24,6 +24,16 @@ $stmt = $db->prepare("
 ");
 $stmt->execute($params); $orders = $stmt->fetchAll();
 
+// Group orders by batch_id
+$groups = [];
+foreach ($orders as $o) {
+    if ($o['batch_id']) {
+        $groups[$o['batch_id']][] = $o;
+    } else {
+        $groups['standalone_'.$o['id']][] = $o; // ID prevents collision
+    }
+}
+
 // Add payment fields if missing (Schema Check)
 $res = $db->query("SELECT column_name FROM information_schema.columns WHERE table_name='orders' AND column_name='payment_status'");
 if (!$res->fetch()) {
@@ -53,62 +63,82 @@ require_once __DIR__ . '/../includes/customer_header.php';
   <?php endif; endforeach; ?>
 </div>
 
-<?php if ($orders): ?>
+<?php if ($groups): ?>
   <div class="row g-3">
-    <?php foreach ($orders as $o): ?>
-      <div class="col-12"><div class="order-card">
-        <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
+    <?php foreach ($groups as $bid => $items): 
+        $o = $items[0]; // Representative order for the card header
+        $isBatch = (count($items) > 1 || (!str_contains($bid, 'standalone_')));
+    ?>
+      <div class="col-12"><div class="order-card p-3 shadow-sm border rounded bg-white">
+        <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
           <div>
-            <div class="order-id">Order #<?= $o['id'] ?> · <?= timeAgo($o['created_at']) ?></div>
-            <h5 class="mb-1"><?= clean($o['style_name'] ?? 'Custom Style') ?></h5>
-            <?php if ($o['fabric_name']): ?>
-              <div class="text-muted small"><i class="bi bi-layers me-1"></i><?= clean($o['fabric_name']) ?> (<?= clean($o['fabric_color']) ?>)</div>
-            <?php endif; ?>
-            <?php if ($o['notes']): ?><div class="text-muted small mt-1"><i class="bi bi-chat-left me-1"></i><?= clean(substr($o['notes'],0,100)) ?></div><?php endif; ?>
+            <div class="order-id fw-bold text-pink">
+                <?= $isBatch ? '<i class="bi bi-collection-fill me-1"></i>Batch Order' : 'Order #'.$o['id'] ?>
+                · <?= timeAgo($o['created_at']) ?>
+            </div>
+            <?php if ($isBatch): ?><div class="text-muted smaller">Batch ID: <?= clean($o['batch_id'] ?? 'N/A') ?></div><?php endif; ?>
           </div>
           <div class="text-end">
-            <?= statusBadge($o['status']) ?>
-            <div class="fw-700 fs-5 text-pink mt-1"><?= ghcFormat($o['total_amount']) ?></div>
-            <div class="text-muted" style="font-size:.75rem;">Qty: <?= $o['quantity'] ?></div>
-            
-            <div class="d-flex flex-column align-items-end gap-2 mt-2">
-              <?php if ($o['status'] === 'pending'): ?>
-                <form action="<?= BASE_URL ?>/customer/cancel_order.php" method="POST" onsubmit="return confirm('Are you sure you want to cancel this order?')">
-                  <input type="hidden" name="order_id" value="<?= $o['id'] ?>">
-                  <button type="submit" class="btn btn-sm btn-outline-danger">
-                    <i class="bi bi-x-circle me-1"></i>Cancel Order
-                  </button>
-                </form>
-              <?php endif; ?>
-
-              <?php if ($o['status'] === 'approved' && ($o['payment_status'] ?? 'unpaid') !== 'paid'): ?>
-                <a href="<?= BASE_URL ?>/customer/pay.php?id=<?= $o['id'] ?>" class="btn btn-sm btn-fashion">
-                  <i class="bi bi-credit-card me-1"></i>Pay Now
-                </a>
-              <?php elseif (($o['payment_status'] ?? '') === 'paid'): ?>
-                <div class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Paid Online</div>
-              <?php endif; ?>
-            </div>
+            <div class="text-muted" style="font-size:.75rem;">Placed on <?= date('M d, Y', strtotime($o['created_at'])) ?></div>
           </div>
         </div>
 
-        <!-- Status bar -->
-        <?php
-        $steps = ['pending'=>0,'approved'=>1,'in-progress'=>2,'completed'=>3,'cancelled'=>3];
-        $cur = $steps[$o['status']] ?? 0; $isCancelled = $o['status']==='cancelled';
-        $labels = ['Placed','Approved','In Progress','Completed'];
-        ?>
-        <div class="status-timeline mt-3" style="max-width:500px;">
-          <?php foreach ($labels as $i => $label): ?>
-            <div class="status-step">
-              <div class="step-dot <?= $isCancelled?'':($i<$cur?'done':($i===$cur?'active':'')) ?>">
-                <?= (!$isCancelled&&$i<$cur) ? '<i class="bi bi-check-lg"></i>' : ($i+1) ?>
+        <!-- Items in this batch -->
+        <div class="batch-items d-flex flex-column gap-2 mb-3">
+          <?php foreach ($items as $item): ?>
+            <div class="p-2 border rounded bg-light d-flex justify-content-between align-items-center">
+              <div>
+                <span class="fw-bold"><?= clean($item['style_name'] ?? 'Custom Design') ?></span>
+                <?php if ($item['is_custom']): ?><span class="badge bg-purple-100 text-purple-700 mx-1">Custom</span><?php endif; ?>
+                <div class="text-muted smaller">
+                    <i class="bi bi-layers me-1"></i><?= clean($item['fabric_name'] ?? '—') ?> (<?= clean($item['fabric_color'] ?? '') ?>)
+                    · Qty: <?= $item['quantity'] ?>
+                </div>
               </div>
-              <div class="step-label"><?= $label ?></div>
+              <div class="text-end">
+                <?= statusBadge($item['status']) ?>
+                <div class="fw-bold text-pink"><?= ghcFormat($item['total_amount']) ?></div>
+                <div class="d-flex gap-1 mt-1 justify-content-end">
+                  <?php if ($item['status'] === 'pending'): ?>
+                    <form action="<?= BASE_URL ?>/customer/cancel_order.php" method="POST" onsubmit="return confirm('Cancel this item?')">
+                      <input type="hidden" name="order_id" value="<?= $item['id'] ?>">
+                      <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Cancel"><i class="bi bi-x-circle"></i></button>
+                    </form>
+                  <?php endif; ?>
+                  <?php if ($item['status'] === 'approved' && ($item['payment_status'] ?? 'unpaid') !== 'paid'): ?>
+                    <a href="<?= BASE_URL ?>/customer/pay.php?id=<?= $item['id'] ?>" class="btn btn-sm btn-fashion py-0 px-2" style="font-size:0.75rem;">Pay</a>
+                  <?php endif; ?>
+                </div>
+              </div>
             </div>
           <?php endforeach; ?>
         </div>
-        <?php if ($isCancelled): ?><div class="text-danger small mt-2"><i class="bi bi-x-circle me-1"></i>This order was cancelled.</div><?php endif; ?>
+
+        <!-- Shared Notes/Payment Info -->
+        <div class="d-flex justify-content-between align-items-end mt-2 flex-wrap gap-2">
+            <div class="notes-section flex-grow-1">
+                <?php if ($o['notes']): ?>
+                    <div class="text-muted smaller opacity-75">
+                        <i class="bi bi-chat-left-dots me-1"></i><?= clean(substr($o['notes'],0,150)) ?>...
+                    </div>
+                <?php endif; ?>
+                <div class="mt-1">
+                    <span class="badge bg-secondary smaller"><?= strtoupper(str_replace('_',' ',$o['payment_method']??'CASH')) ?></span>
+                    <?php if ($o['payment_reference']): ?>
+                        <code class="smaller ms-1">ID: <?= clean($o['payment_reference']) ?></code>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <div class="total-section text-end">
+                <?php 
+                    $batchTotal = array_sum(array_column($items, 'total_amount'));
+                    $anyCustom = count(array_filter($items, fn($i) => $i['is_custom'])) > 0;
+                ?>
+                <div class="text-muted smaller">Estimated Batch Total:</div>
+                <div class="fw-700 fs-4 text-pink"><?= ghcFormat($batchTotal) ?><?= $anyCustom ? '*' : '' ?></div>
+                <?php if ($anyCustom): ?><small class="text-purple smaller">* Includes custom designs TBD</small><?php endif; ?>
+            </div>
+        </div>
       </div></div>
     <?php endforeach; ?>
   </div>

@@ -19,6 +19,14 @@ $stmt = $db->prepare("
 $stmt->execute([$id]);
 $order = $stmt->fetch();
 if (!$order) { setFlash('danger','Order not found.'); redirect(BASE_URL.'/admin/orders.php'); }
+
+// Batch Items
+$batchItems = [];
+if ($order['batch_id']) {
+    $biStmt = $db->prepare("SELECT o.*, s.name as style_name FROM orders o LEFT JOIN styles s ON o.style_id=s.id WHERE o.batch_id=?");
+    $biStmt->execute([$order['batch_id']]);
+    $batchItems = $biStmt->fetchAll();
+}
 $activePage = 'orders';
 $pageTitle  = "Order #$id";
 $breadcrumb = ['Orders'=>BASE_URL.'/admin/orders.php', "Order #$id"=>null];
@@ -246,6 +254,36 @@ require_once __DIR__ . '/../includes/header.php';
         <?php endif; ?>
       </div>
     </div>
+
+    <!-- Batch Summary -->
+    <?php if ($order['batch_id'] && count($batchItems) > 1): ?>
+    <div class="card-studio mb-3 border-pink-200">
+      <div class="card-header bg-pink-50"><h5><i class="bi bi-collection-fill text-pink me-2"></i>Batch Collection</h5></div>
+      <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+          <?php foreach ($batchItems as $bi): ?>
+            <a href="?id=<?= $bi['id'] ?>" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center <?= $bi['id']==$id?'active':'' ?>">
+              <div>
+                <small class="d-block <?= $bi['id']==$id?'text-white':'text-muted' ?>">Order #<?= $bi['id'] ?></small>
+                <strong><?= clean($bi['style_name'] ?? ($bi['is_custom']?'Bespoke Design':'—')) ?></strong>
+              </div>
+              <div class="text-end">
+                <div class="fw-bold <?= $bi['id']==$id?'text-white':'text-pink' ?>"><?= ghcFormat($bi['total_amount']) ?></div>
+                <small><?= statusBadge($bi['status']) ?></small>
+              </div>
+            </a>
+          <?php endforeach; ?>
+        </div>
+        <div class="p-3 bg-light border-top">
+            <?php $bt = array_sum(array_column($batchItems, 'total_amount')); ?>
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="small fw-bold">Batch Total:</span>
+                <span class="fs-5 fw-bold text-pink"><?= ghcFormat($bt) ?></span>
+            </div>
+        </div>
+      </div>
+    </div>
+    <?php endif; ?>
 
     <!-- Quick Actions -->
     <div class="card-studio">

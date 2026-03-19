@@ -44,7 +44,7 @@ $perPage      = 15;
 $where = 'WHERE 1=1';
 $params = [];
 if ($filterStatus) { $where .= ' AND o.status=?'; $params[] = $filterStatus; }
-if ($search) { $where .= ' AND (u.name LIKE ? OR o.id LIKE ?)'; $params[] = "%$search%"; $params[] = "%$search%"; }
+if ($search) { $where .= ' AND (u.name ILIKE ? OR CAST(o.id AS TEXT) LIKE ?)'; $params[] = "%$search%"; $params[] = "%$search%"; }
 
 $totalStmt = $db->prepare("SELECT COUNT(*) FROM orders o JOIN customers c ON o.customer_id=c.id JOIN users u ON c.user_id=u.id $where");
 $totalStmt->execute($params);
@@ -119,12 +119,34 @@ require_once __DIR__ . '/../includes/header.php';
   <div class="card-body p-0">
     <div class="table-responsive">
       <table class="table table-studio mb-0">
-        <thead><tr><th>#</th><th>Customer</th><th>Style</th><th>Fabric</th><th>Qty</th><th>Assigned To</th><th>Status</th><th>Amount</th><th>Date</th><th>Actions</th></tr></thead>
+        <thead><tr><th>#</th><th>Customer</th><th>Batch</th><th>Style</th><th>Fabric</th><th>Qty</th><th>Assigned</th><th>Status</th><th>Amount</th><th>Actions</th></tr></thead>
         <tbody>
-        <?php foreach ($orders as $o): ?>
-          <tr>
+        <?php 
+        $lastBatch = null;
+        $batchToggle = false;
+        foreach ($orders as $o): 
+            if ($o['batch_id'] && $o['batch_id'] !== $lastBatch) {
+                $batchToggle = !$batchToggle;
+                $lastBatch = $o['batch_id'];
+            } elseif (!$o['batch_id']) {
+                $batchToggle = false;
+                $lastBatch = null;
+            }
+            $rowClass = ($o['batch_id'] && $batchToggle) ? 'bg-pink-50' : '';
+        ?>
+          <tr class="<?= $rowClass ?>">
             <td><a href="<?= BASE_URL ?>/admin/order_detail.php?id=<?= $o['id'] ?>" class="fw-600 text-pink">#<?= $o['id'] ?></a></td>
-            <td><?= clean($o['customer_name']) ?></td>
+            <td>
+                <?= clean($o['customer_name']) ?><br>
+                <small class="text-muted smaller"><?= timeAgo($o['created_at']) ?></small>
+            </td>
+            <td>
+                <?php if ($o['batch_id']): ?>
+                    <span class="badge bg-pink-100 text-pink-700 smaller" title="<?= $o['batch_id'] ?>">
+                        <i class="bi bi-collection-fill"></i>
+                    </span>
+                <?php else: ?>—<?php endif; ?>
+            </td>
             <td class="small">
               <?php if ($o['is_custom']): ?>
                 <span class="badge bg-purple-100 text-purple-700 border-purple-200 mb-1" style="font-size:0.65rem">
@@ -138,7 +160,6 @@ require_once __DIR__ . '/../includes/header.php';
             <td class="small"><?= clean($o['assigned_name'] ?? '—') ?></td>
             <td><?= statusBadge($o['status']) ?></td>
             <td class="fw-600"><?= ghcFormat($o['total_amount']) ?></td>
-            <td class="small text-muted"><?= timeAgo($o['created_at']) ?></td>
             <td>
               <div class="d-flex gap-1">
                 <a href="<?= BASE_URL ?>/admin/order_detail.php?id=<?= $o['id'] ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>

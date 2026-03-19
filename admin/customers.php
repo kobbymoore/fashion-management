@@ -12,7 +12,7 @@ $search = trim($_GET['q'] ?? '');
 $page   = max(1, (int)($_GET['page'] ?? 1));
 $perPage = 15;
 
-$where = $search ? "WHERE u.name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?" : '';
+$where = $search ? "WHERE u.name ILIKE ? OR u.email ILIKE ? OR u.phone ILIKE ?" : '';
 $params = $search ? ["%$search%", "%$search%", "%$search%"] : [];
 
 $total = $db->prepare("SELECT COUNT(*) FROM users u LEFT JOIN customers c ON c.user_id=u.id $where AND u.role='customer'");
