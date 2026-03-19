@@ -23,11 +23,13 @@ foreach ($checkCols as $col) {
     $res = $db->prepare("SELECT column_name FROM information_schema.columns WHERE table_name='orders' AND column_name=?");
     $res->execute([$col]);
     if (!$res->fetch()) {
-        $sql = "ALTER TABLE orders ADD COLUMN IF NOT EXISTS $col " . ($col === 'is_custom' ? "BOOLEAN DEFAULT FALSE" : "TEXT");
-        if ($col === 'custom_image' || $col === 'custom_voice') $sql = "ALTER TABLE orders ADD COLUMN IF NOT EXISTS $col VARCHAR(255)";
+        $sql = "ALTER TABLE orders ADD COLUMN IF NOT EXISTS $col " . (($col === 'is_custom') ? "BOOLEAN DEFAULT FALSE" : "TEXT");
+        if ($col === 'custom_image') $sql = "ALTER TABLE orders ADD COLUMN IF NOT EXISTS $col VARCHAR(255)";
         $db->exec($sql);
     }
 }
+// Ensure custom_voice is TEXT (in case it was previously VARCHAR)
+$db->exec("ALTER TABLE orders ALTER COLUMN custom_voice TYPE TEXT");
 
 $errors = [];
 if ($_SERVER['REQUEST_METHOD']==='POST') {
@@ -49,37 +51,15 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
             $styleRow = $db->prepare("SELECT base_price FROM styles WHERE id=?");
             $styleRow->execute([$styleId]); $styleRow = $styleRow->fetch();
         }
-        $total = ($styleRow['base_price'] ?? 0) * $qty;
-        
         $is_custom = ($styleId == -1) ? 1 : 0;
-        $custom_img = null;
-        $custom_voice = null;
+        $custom_voice = $_POST['custom_voice_base64'] ?? null;
         $custom_desc = trim($_POST['custom_description'] ?? '');
         $custom_img_url = trim($_POST['custom_image_url'] ?? '');
 
-        if ($is_custom) {
-            $uploadDir = __DIR__ . '/../assets/uploads/custom/';
-            if (!is_dir($uploadDir)) @mkdir($uploadDir, 0777, true);
-
-            // Decode Base64 Voice Note if present
-            if (!empty($_POST['custom_voice_base64'])) {
-                $data = $_POST['custom_voice_base64'];
-                if (preg_match('/^data:audio\/(\w+);base64,/', $data, $type)) {
-                    $data = substr($data, strpos($data, ',') + 1);
-                    $ext = strtolower($type[1]); // e.g., webm, ogg, mp3
-                    $data = base64_decode($data);
-                    $newName = 'voice_'.time().'.'.$ext;
-                    if (file_put_contents($uploadDir . $newName, $data)) {
-                        $custom_voice = 'assets/uploads/custom/'.$newName;
-                    }
-                }
-            }
-        }
-
         $sid_val = ($styleId == -1) ? null : $styleId;
 
-        $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, custom_image, custom_voice, custom_description, custom_image_url) VALUES(?,?,?,?,'pending',?,?,?,?,?,?,?,?,?,?,?)")
-           ->execute([$cid,$sid_val,$fabricId,$qty,$notes,$sBust,$sWaist,$sHips,$sHeight,$total, $is_custom, $custom_img, $custom_voice, $custom_desc, $custom_img_url]);
+        $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, custom_voice, custom_description, custom_image_url) VALUES(?,?,?,?,'pending',?,?,?,?,?,?,?,?,?,?)")
+           ->execute([$cid,$sid_val,$fabricId,$qty,$notes,$sBust,$sWaist,$sHips,$sHeight,$total, $is_custom, $custom_voice, $custom_desc, $custom_img_url]);
         
         $newId = $db->lastInsertId();
         auditLog('place_order',"Customer #$cid placed ".($is_custom?'CUSTOM ':'')."order #$newId");

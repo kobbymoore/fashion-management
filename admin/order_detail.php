@@ -115,13 +115,13 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php if ($order['custom_voice']): ?>
                   <div class="col-md-6">
                     <label class="text-muted small d-block mb-1">Voice Instruction</label>
-                    <audio controls class="w-100 mt-2">
-                        <source src="<?= BASE_URL ?>/<?= $order['custom_voice'] ?>" type="audio/mpeg">
-                        Your browser does not support the audio element.
-                    </audio>
-                    <a href="<?= BASE_URL ?>/<?= $order['custom_voice'] ?>" target="_blank" class="btn btn-sm btn-outline-secondary mt-2 w-100">
-                      <i class="bi bi-download me-1"></i>Download Audio
-                    </a>
+                    <div class="p-2 border rounded bg-white shadow-sm mt-1">
+                      <audio controls class="w-100" style="height: 35px;">
+                          <source src="<?= $order['custom_voice'] ?>">
+                          Your browser does not support the audio element.
+                      </audio>
+                      <small class="text-muted d-block mt-1">Recorded by customer</small>
+                    </div>
                   </div>
                 <?php endif; ?>
               </div>
