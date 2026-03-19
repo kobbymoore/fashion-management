@@ -255,19 +255,37 @@ document.querySelectorAll('.style-selectable').forEach(card => {
   card.addEventListener('click', () => {
     document.querySelectorAll('.style-selectable').forEach(c => c.classList.remove('selected'));
     card.classList.add('selected');
-    document.getElementById('hiddenStyleId').value = card.dataset.id;
+    const sid = card.dataset.id;
+    document.getElementById('hiddenStyleId').value = sid;
+    
+    // Toggle Custom Fields
+    const customFields = document.getElementById('customOrderFields');
+    if (sid == "-1") {
+        customFields.style.display = 'block';
+    } else {
+        customFields.style.display = 'none';
+    }
+
     // trigger price update
-    const sel = document.getElementById('style_id');
-    if (sel) sel.value = card.dataset.id;
-    document.getElementById('style_id') || (window.stylePrices && updateOrderPrice(card.dataset.id));
+    updateOrderPrice(sid);
   });
 });
 
 function updateOrderPrice(styleId) {
+  const priceBox = document.getElementById('priceEstimate');
+  const priceBoxContainer = document.querySelector('.price-estimate-box');
+  if (!priceBox) return;
+
+  if (styleId == "-1") {
+      priceBox.textContent = 'To be Quoted';
+      priceBoxContainer?.classList.remove('d-none');
+      return;
+  }
+  
   const price = parseFloat(window.stylePrices[styleId] || 0);
   const qty   = parseInt(document.getElementById('quantity')?.value || 1);
-  document.getElementById('priceEstimate').textContent = 'GH₵ ' + (price * qty).toFixed(2);
-  document.querySelector('.price-estimate-box')?.classList.remove('d-none');
+  priceBox.textContent = 'GH₵ ' + (price * qty).toFixed(2);
+  priceBoxContainer?.classList.remove('d-none');
 }
 
 document.getElementById('quantity')?.addEventListener('input', () => {
