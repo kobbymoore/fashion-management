@@ -159,7 +159,12 @@ require_once __DIR__ . '/../includes/header.php';
             <tr>
               <td><a href="<?= BASE_URL ?>/admin/order_detail.php?id=<?= $o['id'] ?>" class="text-pink fw-600">#<?= $o['id'] ?></a></td>
               <td><?= clean($o['customer_name']) ?></td>
-              <td><?= clean($o['style_name'] ?? '—') ?></td>
+              <td>
+                <?php if ($o['is_custom']): ?>
+                  <span class="badge bg-purple-100 text-purple-700 border-purple-200 me-2" style="font-size:0.6rem">CUSTOM</span>
+                <?php endif; ?>
+                <?= clean($o['style_name'] ?? 'Bespoke Order') ?>
+              </td>
               <td><?= statusBadge($o['status']) ?></td>
               <td class="fw-600"><?= ghcFormat($o['total_amount']) ?></td>
               <td class="text-muted"><?= timeAgo($o['created_at']) ?></td>
