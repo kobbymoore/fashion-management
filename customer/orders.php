@@ -28,6 +28,9 @@ foreach ($checkCols as $col) {
         $db->exec($sql);
     }
 }
+// Add batch_id for grouping multi-style orders
+$db->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS batch_id VARCHAR(50)");
+
 // Final set of columns for commitment/payment
 $payCols = ['payment_method','payment_status','payment_reference'];
 foreach($payCols as $pc) {
@@ -41,49 +44,70 @@ foreach($payCols as $pc) {
 $db->exec("ALTER TABLE orders ALTER COLUMN custom_voice TYPE TEXT");
 
 $errors = [];
-if ($_SERVER['REQUEST_METHOD']==='POST') {
-    $styleId  = (int)($_POST['style_id'] ?? 0);
-    $fabricId = (int)($_POST['fabric_id'] ?? 0);
-    $qty      = max(1,(int)($_POST['quantity'] ?? 1));
-    $notes    = trim($_POST['notes'] ?? '');
-    $sBust    = !empty($_POST['self_bust'])   ? (float)$_POST['self_bust']   : null;
-    $sWaist   = !empty($_POST['self_waist'])  ? (float)$_POST['self_waist']  : null;
-    $sHips    = !empty($_POST['self_hips'])   ? (float)$_POST['self_hips']   : null;
-    $sHeight  = !empty($_POST['self_height']) ? (float)$_POST['self_height'] : null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $styleIds = $_POST['style_ids'] ?? [];
+    $isCustomSubmit = isset($_POST['is_custom_submit']) && $_POST['is_custom_submit'] == '1';
 
-    if (!$styleId) $errors[] = 'Please select a style.';
-    if (!$fabricId) $errors[] = 'Please select a fabric.';
-
-    if (!$errors) {
-        $styleRow = null;
-        if ($styleId > 0) {
-            $styleRow = $db->prepare("SELECT base_price FROM styles WHERE id=?");
-            $styleRow->execute([$styleId]); $styleRow = $styleRow->fetch();
-        }
-        $total = ($styleId > 0 && $styleRow) ? ($styleRow['base_price'] * $qty) : 0;
+    if (empty($styleIds) && !$isCustomSubmit) {
+        $errors[] = 'Please select at least one style.';
+    } else {
+        $cid = $customer['id']; // customer_id
+        $fabricId = (int)($_POST['fabric_id'] ?? 0);
+        $qty = max(1, (int)($_POST['quantity'] ?? 1));
+        $notes = trim($_POST['notes'] ?? '');
+        $sBust = $_POST['self_bust'] ?: null;
+        $sWaist = $_POST['self_waist'] ?: null;
+        $sHips = $_POST['self_hips'] ?: null;
+        $sHeight = $_POST['self_height'] ?: null;
         
-        $is_custom = ($styleId == -1) ? 1 : 0;
-        $custom_voice = $_POST['custom_voice_base64'] ?? null;
-        $custom_desc = trim($_POST['custom_description'] ?? '');
-        $custom_img_url = trim($_POST['custom_image_url'] ?? '');
         $pay_method = $_POST['payment_method'] ?? 'cash';
         $pay_ref    = trim($_POST['payment_reference'] ?? '');
         $pay_status = (!empty($pay_ref)) ? 'pending_verification' : 'unpaid';
+        $batch_id   = 'BATCH-' . strtoupper(bin2hex(random_bytes(4)));
 
-        $sid_val = ($styleId == -1) ? null : $styleId;
+        $db->beginTransaction();
+        try {
+            // 1. Handle Custom Style
+            if ($isCustomSubmit) {
+                $custom_voice = $_POST['custom_voice_base64'] ?? null;
+                $custom_desc = trim($_POST['custom_description'] ?? '');
+                $custom_img_url = trim($_POST['custom_image_url'] ?? '');
+                
+                $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, custom_voice, custom_description, custom_image_url, payment_method, payment_status, payment_reference, batch_id) VALUES(?,?,?,?,'pending',?,?,?,?,?,0.00, 1, ?, ?, ?, ?, ?, ?, ?)")
+                   ->execute([$cid, null, $fabricId, $qty, $notes, $sBust, $sWaist, $sHips, $sHeight, $custom_voice, $custom_desc, $custom_img_url, $pay_method, $pay_status, $pay_ref, $batch_id]);
+            }
 
-        $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, custom_voice, custom_description, custom_image_url, payment_method, payment_status, payment_reference) VALUES(?,?,?,?,'pending',?,?,?,?,?,?,?,?,?,?,?,?,?)")
-           ->execute([$cid,$sid_val,$fabricId,$qty,$notes,$sBust,$sWaist,$sHips,$sHeight,$total, $is_custom, $custom_voice, $custom_desc, $custom_img_url, $pay_method, $pay_status, $pay_ref]);
-        
-        $newId = $db->lastInsertId();
-        auditLog('place_order',"Customer #$cid placed ".($is_custom?'CUSTOM ':'')."order #$newId");
+            // 2. Handle Standard Styles
+            foreach ($styleIds as $sid) {
+                $sid = (int)$sid;
+                if ($sid <= 0) continue;
+                
+                // Get style price
+                $sStmt = $db->prepare("SELECT base_price FROM styles WHERE id=?");
+                $sStmt->execute([$sid]);
+                $sPrice = (float)$sStmt->fetchColumn();
+                $itemTotal = $sPrice * $qty;
 
-        // Notify staff
-        $staffUsers = $db->query("SELECT id FROM users WHERE role IN('staff','admin') AND is_active=TRUE")->fetchAll();
-        foreach ($staffUsers as $su) addNotification($su['id'], "New ".($is_custom?'CUSTOM ':'')."order #$newId received from ".clean($user['name']).".");
+                $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, payment_method, payment_status, payment_reference, batch_id) VALUES(?,?,?,?,'pending',?,?,?,?,?,?, 0, ?, ?, ?, ?)")
+                   ->execute([$cid, $sid, $fabricId, $qty, $notes, $sBust, $sWaist, $sHips, $sHeight, $itemTotal, $pay_method, $pay_status, $pay_ref, $batch_id]);
+            }
 
-        setFlash('success',"Order #$newId placed successfully! Our team will review it shortly.");
-        redirect(BASE_URL.'/customer/order_history.php');
+            $db->commit();
+            
+            // Notify staff
+            $u = currentUser();
+            $staffUsers = $db->query("SELECT id FROM users WHERE role IN('staff','admin') AND is_active=TRUE")->fetchAll();
+            foreach ($staffUsers as $su) {
+                addNotification($su['id'], "New batch order ($batch_id) received from ".clean($u['name']).".");
+            }
+
+            auditLog('place_batch_order', "Customer #{$u['id']} placed batch order: $batch_id");
+            setFlash('success', 'Your orders have been placed successfully! 🥂');
+            redirect(BASE_URL . '/customer/dashboard.php');
+        } catch (Exception $e) {
+            $db->rollBack();
+            $errors[] = 'Failed to place order: ' . $e->getMessage();
+        }
     }
 }
 
@@ -104,50 +128,42 @@ require_once __DIR__ . '/../includes/customer_header.php';
 <div class="row g-4">
   <!-- Styles Grid -->
   <div class="col-12">
-    <h5 class="mb-3"><i class="bi bi-stars text-gold me-2"></i>Choose a Style</h5>
+    <h5 class="mb-3"><i class="bi bi-stars text-gold me-2"></i>Choose One or More Styles</h5>
     <div class="row g-3" id="stylesGrid">
       <?php foreach ($styles as $s): ?>
-        <div class="col-6 col-sm-4 col-lg-3">
-          <label class="style-selector-card" for="style_<?= $s['id'] ?>">
-            <input type="radio" name="style_id_sel" id="style_<?= $s['id'] ?>" value="<?= $s['id'] ?>" class="d-none style-radio"
-                   <?= (($_POST['style_id'] ?? 0) == $s['id']) ? 'checked' : '' ?>>
-            <div class="style-card style-selectable" data-id="<?= $s['id'] ?>" data-price="<?= $s['base_price'] ?>">
-              <div class="style-card-img-container" style="height:150px; overflow:hidden; background:var(--pink-50);">
-                <?php 
-                  $img = !empty($s['image_path']) ? $s['image_path'] : 'assets/images/styles/placeholder.png';
-                  $displayImg = (strpos($img, 'http') === 0) ? $img : BASE_URL . '/' . $img;
-                ?>
-                <img src="<?= $displayImg ?>" alt="<?= clean($s['name']) ?>" style="width:100%; height:100%; object-fit:cover;">
-              </div>
-              <div class="style-card-body">
-                <div class="style-card-title"><?= clean($s['name']) ?></div>
-                <div class="style-card-price"><?= ghcFormat($s['base_price']) ?></div>
-                <small class="text-muted"><?= clean(substr($s['description'],0,60)) ?>…</small>
-              </div>
-              <div class="style-check"><i class="bi bi-check-circle-fill"></i></div>
-            </div>
-          </label>
-        </div>
-      <?php endforeach; ?>
-
-      <!-- CUSTOM DESIGN OPTION -->
-      <div class="col-6 col-sm-4 col-lg-3">
-        <label class="style-selector-card" for="style_custom">
-          <input type="radio" name="style_id_sel" id="style_custom" value="-1" class="d-none style-radio"
-                 <?= (($_POST['style_id'] ?? 0) == -1) ? 'checked' : '' ?>>
-          <div class="style-card style-selectable bg-pink-50 border-pink" data-id="-1" data-price="0">
-            <div class="d-flex flex-column align-items-center justify-content-center" style="height:150px; background:white;">
-              <i class="bi bi-pencil-square text-pink fs-1"></i>
-              <span class="fw-bold text-pink small mt-2">REQUEST CUSTOM</span>
+        <div class="col-6 col-md-4 col-lg-3">
+          <div class="style-card style-selectable" data-id="<?= $s['id'] ?>" onclick="toggleStyle(this)">
+            <div class="style-card-img-container" style="height:150px; overflow:hidden; background:var(--pink-50);">
+              <?php 
+                $img = !empty($s['image_path']) ? $s['image_path'] : 'assets/images/styles/placeholder.png';
+                $displayImg = (strpos($img, 'http') === 0) ? $img : BASE_URL . '/' . $img;
+              ?>
+              <img src="<?= $displayImg ?>" alt="<?= clean($s['name']) ?>" style="width:100%; height:100%; object-fit:cover;">
             </div>
             <div class="style-card-body">
-              <div class="style-card-title">Bespoke / Custom</div>
-              <div class="style-card-price">Price: To be Quoted</div>
-              <small class="text-muted">Upload your own design & ideas</small>
+              <div class="style-card-title"><?= clean($s['name']) ?></div>
+              <div class="style-card-price"><?= ghcFormat($s['base_price']) ?></div>
+              <small class="text-muted"><?= clean(substr($s['description'],0,40)) ?>…</small>
             </div>
             <div class="style-check"><i class="bi bi-check-circle-fill"></i></div>
           </div>
-        </label>
+        </div>
+      <?php endforeach; ?>
+
+      <!-- Bespoke Card -->
+      <div class="col-6 col-md-4 col-lg-3">
+        <div class="style-card style-selectable border-purple-dashed bg-purple-50" data-id="custom" onclick="toggleStyle(this)">
+          <div class="d-flex flex-column align-items-center justify-content-center" style="height:150px; background:white;">
+            <i class="bi bi-pencil-square text-purple fs-1"></i>
+            <span class="fw-bold text-purple small mt-2">REQUEST CUSTOM</span>
+          </div>
+          <div class="style-card-body">
+            <div class="style-card-title text-purple">Bespoke Design</div>
+            <div class="style-card-price">Price: To be Quoted</div>
+            <small class="text-muted">Tell us your unique vision</small>
+          </div>
+          <div class="style-check bg-purple"><i class="bi bi-check-circle-fill"></i></div>
+        </div>
       </div>
     </div>
   </div>
@@ -155,10 +171,15 @@ require_once __DIR__ . '/../includes/customer_header.php';
   <!-- Order Form -->
   <div class="col-lg-7">
     <div class="card-studio">
-      <div class="card-header"><h5><i class="bi bi-clipboard-fill text-pink me-2"></i>Order Details</h5></div>
+      <div class="card-header"><h5><i class="bi bi-cart shadow-sm me-2"></i>Selected Outfits</h5></div>
       <div class="card-body">
         <form method="POST" id="orderForm" enctype="multipart/form-data">
-          <input type="hidden" name="style_id" id="hiddenStyleId" value="<?= (int)($_POST['style_id']??0) ?>">
+          <!-- Selection Container -->
+          <div id="selectionList" class="mb-3 d-flex flex-wrap gap-2">
+            <div class="text-muted small py-2"><i class="bi bi-info-circle me-1"></i>Please select one or more styles from the left...</div>
+          </div>
+          <div id="styleInputs"></div> <!-- Hidden inputs for styles -->
+          <input type="hidden" name="is_custom_submit" id="isCustomSubmit" value="0">
 
           <!-- Custom Order Fields -->
           <div id="customOrderFields" class="mb-4 p-3 border rounded bg-light" style="display:none;">
@@ -305,55 +326,90 @@ require_once __DIR__ . '/../includes/customer_header.php';
   </div>
 </div>
 
-<script>
-window.stylePrices = <?= json_encode($stylePrices) ?>;
+const selectedStyles = new Set();
+const styleNames = {};
 
-// Style selection
-document.querySelectorAll('.style-selectable').forEach(card => {
-  card.addEventListener('click', () => {
-    document.querySelectorAll('.style-selectable').forEach(c => c.classList.remove('selected'));
-    card.classList.add('selected');
-    const sid = card.dataset.id;
-    document.getElementById('hiddenStyleId').value = sid;
-    
-    // Toggle Custom Fields
+<?php foreach($styles as $s): ?>
+styleNames[<?= $s['id'] ?>] = "<?= clean($s['name']) ?>";
+<?php endforeach; ?>
+
+function toggleStyle(el) {
+    const id = el.getAttribute('data-id');
     const customFields = document.getElementById('customOrderFields');
-    if (sid == "-1") {
-        customFields.style.display = 'block';
+    const isCustom = (id === 'custom');
+
+    if (el.classList.contains('selected')) {
+        el.classList.remove('selected');
+        if (isCustom) {
+            customFields.style.display = 'none';
+            document.getElementById('isCustomSubmit').value = '0';
+        } else {
+            selectedStyles.delete(id);
+        }
     } else {
-        customFields.style.display = 'none';
+        el.classList.add('selected');
+        if (isCustom) {
+            customFields.style.display = 'block';
+            document.getElementById('isCustomSubmit').value = '1';
+        } else {
+            selectedStyles.add(id);
+        }
     }
-
-    // trigger price update
-    updateOrderPrice(sid);
-  });
-});
-
-function updateOrderPrice(styleId) {
-  const priceBox = document.getElementById('priceEstimate');
-  const priceBoxContainer = document.querySelector('.price-estimate-box');
-  if (!priceBox) return;
-
-  if (styleId == "-1") {
-      priceBox.textContent = 'To be Quoted';
-      priceBoxContainer?.classList.remove('d-none');
-      return;
-  }
-  
-  const price = parseFloat(window.stylePrices[styleId] || 0);
-  const qty   = parseInt(document.getElementById('quantity')?.value || 1);
-  priceBox.textContent = 'GH₵ ' + (price * qty).toFixed(2);
-  priceBoxContainer?.classList.remove('d-none');
+    updateCartUI();
 }
 
-document.getElementById('quantity')?.addEventListener('input', () => {
-  const sid = document.getElementById('hiddenStyleId')?.value;
-  if (sid) updateOrderPrice(sid);
-});
+function updateCartUI() {
+    const list = document.getElementById('selectionList');
+    const inputContainer = document.getElementById('styleInputs');
+    const priceBox = document.getElementById('priceEstimate');
+    const priceBoxContainer = document.querySelector('.price-estimate-box');
+    
+    list.innerHTML = "";
+    inputContainer.innerHTML = "";
+    
+    let subTotal = 0;
+    let hasItems = false;
+    let hasCustom = (document.getElementById('isCustomSubmit').value === '1');
 
-// Pre-select if coming back from validation
-const preStyle = document.getElementById('hiddenStyleId')?.value;
-if (preStyle) document.querySelectorAll('.style-selectable[data-id="'+preStyle+'"]').forEach(c=>c.classList.add('selected'));
+    selectedStyles.forEach(id => {
+        hasItems = true;
+        const name = styleNames[id];
+        const price = parseFloat(window.stylePrices[id] || 0);
+        subTotal += price;
+
+        // Badge
+        const span = document.createElement('span');
+        span.className = "badge bg-pink-100 text-pink-700 px-2 py-1 border border-pink-200 d-flex align-items-center gap-1";
+        span.innerHTML = `<i class="bi bi-tag-fill me-1"></i>${name} <i class="bi bi-x-circle ms-1 cursor-pointer" onclick="document.querySelector('.style-selectable[data-id=\\'${id}\\']').click()"></i>`;
+        list.appendChild(span);
+
+        // Hidden input
+        const input = document.createElement('input');
+        input.type = "hidden";
+        input.name = "style_ids[]";
+        input.value = id;
+        inputContainer.appendChild(input);
+    });
+
+    if (hasCustom) {
+        hasItems = true;
+        const span = document.createElement('span');
+        span.className = "badge bg-purple-100 text-purple-700 px-2 py-1 border border-purple-200 d-flex align-items-center gap-1";
+        span.innerHTML = `<i class="bi bi-magic me-1"></i>Custom Request <i class="bi bi-x-circle ms-1 cursor-pointer" onclick="document.querySelector('.style-selectable[data-id=\\'custom\\']').click()"></i>`;
+        list.appendChild(span);
+    }
+
+    if (!hasItems) {
+        list.innerHTML = '<div class="text-muted small py-2"><i class="bi bi-info-circle me-1"></i>Please select one or more styles from the left...</div>';
+        priceBoxContainer?.classList.add('d-none');
+    } else {
+        const qty = parseInt(document.getElementById('quantity')?.value || 1);
+        priceBox.textContent = 'GH₵ ' + (subTotal * qty).toFixed(2) + (hasCustom ? ' + Custom (TBD)' : '');
+        priceBoxContainer?.classList.remove('d-none');
+    }
+}
+
+document.getElementById('quantity')?.addEventListener('input', updateCartUI);
 
 // Add CSS for style selection
 const styleEl = document.createElement('style');
