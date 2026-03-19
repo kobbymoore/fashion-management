@@ -45,16 +45,13 @@ $db->exec("ALTER TABLE orders ALTER COLUMN custom_voice TYPE TEXT");
 
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $items = $_POST['items'] ?? []; // Array of [style_id => qty]
+    $items = $_POST['items'] ?? []; // Array of [style_id => ['qty'=>N, 'fabric_id'=>ID, 'custom_fabric'=>S]]
     $isCustomSubmit = isset($_POST['is_custom_submit']) && $_POST['is_custom_submit'] == '1';
 
     if (empty($items) && !$isCustomSubmit) {
         $errors[] = 'Please select at least one style or a custom design.';
     } else {
         $cid = $customer['id'];
-        $fabricIdRaw = $_POST['fabric_id'] ?? '';
-        $fabricId = ($fabricIdRaw === 'other') ? null : (int)$fabricIdRaw;
-        $customFabric = ($fabricIdRaw === 'other') ? trim($_POST['custom_fabric_details'] ?? '') : null;
         
         $notes = trim($_POST['notes'] ?? '');
         $sBust = $_POST['self_bust'] ?: null;
@@ -76,16 +73,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $custom_desc = trim($_POST['custom_description'] ?? '');
                 $custom_img_url = trim($_POST['custom_image_url'] ?? '');
                 
+                $fIdRaw = $_POST['custom_fabric_id'] ?? '';
+                $fId = ($fIdRaw === 'other') ? null : (int)$fIdRaw;
+                $customFabric = ($fIdRaw === 'other') ? trim($_POST['custom_fabric_details'] ?? '') : null;
+
                 $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,custom_fabric,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, custom_voice, custom_description, custom_image_url, payment_method, payment_status, payment_reference, batch_id) VALUES(?,?,?,?,?,'pending',?,?,?,?,?,0.00, TRUE, ?, ?, ?, ?, ?, ?, ?)")
-                   ->execute([$cid, null, $fabricId, $customFabric, $custom_qty, $notes, $sBust, $sWaist, $sHips, $sHeight, $custom_voice, $custom_desc, $custom_img_url, $pay_method, $pay_status, $pay_ref, $batch_id]);
+                   ->execute([$cid, null, $fId, $customFabric, $custom_qty, $notes, $sBust, $sWaist, $sHips, $sHeight, $custom_voice, $custom_desc, $custom_img_url, $pay_method, $pay_status, $pay_ref, $batch_id]);
             }
 
             // 2. Handle Standard Styles
-            foreach ($items as $sid => $qty) {
+            foreach ($items as $sid => $data) {
                 $sid = (int)$sid;
-                $qty = max(1, (int)$qty);
+                $qty = max(1, (int)($data['qty'] ?? 1));
                 if ($sid <= 0) continue;
                 
+                $fIdRaw = $data['fabric_id'] ?? '';
+                $fId = ($fIdRaw === 'other') ? null : (int)$fIdRaw;
+                $customFabric = ($fIdRaw === 'other') ? trim($data['custom_fabric'] ?? '') : null;
+
                 // Get style price
                 $sStmt = $db->prepare("SELECT base_price FROM styles WHERE id=?");
                 $sStmt->execute([$sid]);
@@ -93,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $itemTotal = $sPrice * $qty;
 
                 $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,custom_fabric,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, payment_method, payment_status, payment_reference, batch_id) VALUES(?,?,?,?,?,'pending',?,?,?,?,?,?, FALSE, ?, ?, ?, ?)")
-                   ->execute([$cid, $sid, $fabricId, $customFabric, $qty, $notes, $sBust, $sWaist, $sHips, $sHeight, $itemTotal, $pay_method, $pay_status, $pay_ref, $batch_id]);
+                   ->execute([$cid, $sid, $fId, $customFabric, $qty, $notes, $sBust, $sWaist, $sHips, $sHeight, $itemTotal, $pay_method, $pay_status, $pay_ref, $batch_id]);
             }
 
             $db->commit();
@@ -222,29 +227,9 @@ require_once __DIR__ . '/../includes/customer_header.php';
               </div>
             </div>
           </div>
-          <div class="row g-3">
-            <div class="col-sm-8">
-              <label class="form-label fw-600">Fabric *</label>
-              <select class="form-select" name="fabric_id" id="fabricSelector" required onchange="toggleCustomFabric(this.value)">
-                <option value="">— Select Fabric for this Batch —</option>
-                <?php foreach ($fabrics as $f): ?>
-                  <option value="<?= $f['id'] ?>" <?= (($fabricIdRaw??0)==$f['id'])?'selected':'' ?>>
-                    <?= clean($f['name']) ?> (<?= clean($f['color']) ?>) – <?= $f['quantity_yards'] ?> yds left
-                  </option>
-                <?php endforeach; ?>
-                <option value="other" <?= (($fabricIdRaw??'')==='other')?'selected':'' ?>>Other / My own fabric (Specify...)</option>
-              </select>
-            </div>
-            <div id="customFabricGroup" class="col-12 mt-2" style="display: <?= (($fabricIdRaw??'')==='other')?'block':'none' ?>;">
-              <label class="form-label fw-600">Specify Fabric Details</label>
-              <textarea class="form-control" name="custom_fabric_details" rows="2" placeholder="e.g. Bringing my own lace, or specify color/type preference..."><?= clean($_POST['custom_fabric_details']??'') ?></textarea>
-            </div>
-            <div class="col-sm-4 d-none">
-              <!-- Removed Global Quantity -->
-              <input type="number" name="quantity_global" value="1">
-            </div>
+          <div class="row g-3 mt-1">
             <div class="col-12">
-              <label class="form-label fw-600">Special Instructions</label>
+              <label class="form-label fw-600">Special Instructions (General)</label>
               <textarea class="form-control" name="notes" rows="3" placeholder="e.g. I prefer a loose fit, zipper at back, by March 20th…"><?= clean($_POST['notes']??'') ?></textarea>
             </div>
           </div>
@@ -341,6 +326,7 @@ const styleNames = {};
 <?php foreach($styles as $s): ?>
     styleNames[<?= $s['id'] ?>] = "<?= clean($s['name']) ?>";
 <?php endforeach; ?>
+window.fabrics = <?= json_encode($fabrics) ?>;
 
 function toggleStyle(el) {
     const id = el.getAttribute('data-id');
@@ -377,8 +363,9 @@ function updateQty(id, delta) {
     updateCartUI();
 }
 
-function toggleCustomFabric(val) {
-    document.getElementById('customFabricGroup').style.display = (val === 'other') ? 'block' : 'none';
+function togglePerItemCustomFabric(id, val) {
+    const target = document.getElementById(`customFabricGroup_${id}`);
+    if (target) target.style.display = (val === 'other') ? 'block' : 'none';
 }
 
 function updateCartUI() {
@@ -399,23 +386,42 @@ function updateCartUI() {
         const qty = cart[id];
         subTotal += (price * qty);
 
+        const fabricOpts = window.fabrics.map(f => `
+            <option value="${f.id}">${f.name} (${f.color}) - ${f.quantity_yards} yds</option>
+        `).join('');
+
         const item = document.createElement('div');
-        item.className = "cart-item d-flex align-items-center justify-content-between p-2 border rounded mb-1 bg-white";
+        item.className = "cart-item p-3 border rounded mb-2 bg-white shadow-sm";
         item.innerHTML = `
-            <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-tag-fill text-pink"></i>
-                <div>
-                    <div class="fw-bold small">${name}</div>
-                    <div class="text-muted smaller">GH₵ ${price.toFixed(2)} each</div>
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-tag-fill text-pink"></i>
+                    <div>
+                        <div class="fw-bold small">${name}</div>
+                        <div class="text-muted smaller">GH₵ ${price.toFixed(2)} each</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="input-group input-group-sm" style="width: 100px;">
+                        <button class="btn btn-outline-secondary" type="button" onclick="updateQty(${id}, -1)">-</button>
+                        <input type="text" class="form-control text-center" value="${qty}" readonly name="items[${id}][qty]">
+                        <button class="btn btn-outline-secondary" type="button" onclick="updateQty(${id}, 1)">+</button>
+                    </div>
+                    <i class="bi bi-x-circle text-danger cursor-pointer" onclick="document.querySelector('.style-selectable[data-id=\\'${id}\\']').click()"></i>
                 </div>
             </div>
-            <div class="d-flex align-items-center gap-2">
-                <div class="input-group input-group-sm" style="width: 100px;">
-                    <button class="btn btn-outline-secondary" type="button" onclick="updateQty(${id}, -1)">-</button>
-                    <input type="text" class="form-control text-center" value="${qty}" readonly name="items[${id}]">
-                    <button class="btn btn-outline-secondary" type="button" onclick="updateQty(${id}, 1)">+</button>
+            <div class="row g-2">
+                <div class="col-12">
+                    <label class="smaller fw-600 mb-1">Choose Fabric for this style *</label>
+                    <select class="form-select form-select-sm" name="items[${id}][fabric_id]" required onchange="togglePerItemCustomFabric(${id}, this.value)">
+                        <option value="">— Select Fabric —</option>
+                        ${fabricOpts}
+                        <option value="other">Other / My own fabric (Specify...)</option>
+                    </select>
                 </div>
-                <i class="bi bi-x-circle text-danger cursor-pointer" onclick="document.querySelector('.style-selectable[data-id=\\'${id}\\']').click()"></i>
+                <div class="col-12 mt-2" id="customFabricGroup_${id}" style="display:none;">
+                    <textarea class="form-control form-control-sm" name="items[${id}][custom_fabric]" rows="1" placeholder="Specify fabric details..."></textarea>
+                </div>
             </div>
         `;
         list.appendChild(item);
@@ -425,23 +431,43 @@ function updateCartUI() {
     if (hasCustom) {
         hasItems = true;
         const qty = parseInt(document.getElementById('customQtyInput')?.value || 1);
+        
+        const fabricOpts = window.fabrics.map(f => `
+            <option value="${f.id}">${f.name} (${f.color}) - ${f.quantity_yards} yds</option>
+        `).join('');
+
         const item = document.createElement('div');
-        item.className = "cart-item d-flex align-items-center justify-content-between p-2 border rounded border-purple-200 bg-purple-50 mb-1";
+        item.className = "cart-item p-3 border rounded border-purple-200 bg-purple-50 mb-2 shadow-sm";
         item.innerHTML = `
-            <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-magic text-purple"></i>
-                <div>
-                    <div class="fw-bold small text-purple">Custom Bespoke Design</div>
-                    <div class="text-muted smaller">Price: TBD</div>
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-magic text-purple"></i>
+                    <div>
+                        <div class="fw-bold small text-purple">Custom Bespoke Design</div>
+                        <div class="text-muted smaller">Price: TBD</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="input-group input-group-sm" style="width: 100px;">
+                        <button class="btn btn-outline-purple" type="button" onclick="updateQty('custom', -1)">-</button>
+                        <input type="text" id="customQtyInput" class="form-control text-center" value="${qty}" readonly name="custom_quantity">
+                        <button class="btn btn-outline-purple" type="button" onclick="updateQty('custom', 1)">+</button>
+                    </div>
+                    <i class="bi bi-x-circle text-danger cursor-pointer" onclick="document.querySelector('.style-selectable[data-id=\\'custom\\']').click()"></i>
                 </div>
             </div>
-            <div class="d-flex align-items-center gap-2">
-                <div class="input-group input-group-sm" style="width: 100px;">
-                    <button class="btn btn-outline-purple" type="button" onclick="updateQty('custom', -1)">-</button>
-                    <input type="text" id="customQtyInput" class="form-control text-center" value="${qty}" readonly name="custom_quantity">
-                    <button class="btn btn-outline-purple" type="button" onclick="updateQty('custom', 1)">+</button>
+            <div class="row g-2">
+                <div class="col-12">
+                    <label class="smaller fw-600 text-purple mb-1">Fabric choice *</label>
+                    <select class="form-select form-select-sm border-purple-200" name="custom_fabric_id" required onchange="togglePerItemCustomFabric('custom', this.value)">
+                        <option value="">— Select Fabric —</option>
+                        ${fabricOpts}
+                        <option value="other">Other / My own fabric (Specify...)</option>
+                    </select>
                 </div>
-                <i class="bi bi-x-circle text-danger cursor-pointer" onclick="document.querySelector('.style-selectable[data-id=\\'custom\\']').click()"></i>
+                <div class="col-12 mt-2" id="customFabricGroup_custom" style="display:none;">
+                    <textarea class="form-control form-control-sm border-purple-200" name="custom_fabric_details" rows="1" placeholder="Specify fabric details for custom design..."></textarea>
+                </div>
             </div>
         `;
         list.appendChild(item);
