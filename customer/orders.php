@@ -57,20 +57,22 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         $custom_desc = trim($_POST['custom_description'] ?? '');
         $custom_img_url = trim($_POST['custom_image_url'] ?? '');
 
-        // Handle Custom Uploads
         if ($is_custom) {
             $uploadDir = __DIR__ . '/../assets/uploads/custom/';
             if (!is_dir($uploadDir)) @mkdir($uploadDir, 0777, true);
 
-            if (isset($_FILES['custom_image']) && $_FILES['custom_image']['error'] === UPLOAD_ERR_OK) {
-                $ext = pathinfo($_FILES['custom_image']['name'], PATHINFO_EXTENSION);
-                $newName = 'custom_img_'.time().'.'.$ext;
-                if (@move_uploaded_file($_FILES['custom_image']['tmp_name'], $uploadDir . $newName)) $custom_img = 'assets/uploads/custom/'.$newName;
-            }
-            if (isset($_FILES['custom_voice']) && $_FILES['custom_voice']['error'] === UPLOAD_ERR_OK) {
-                $ext = pathinfo($_FILES['custom_voice']['name'], PATHINFO_EXTENSION);
-                $newName = 'custom_audio_'.time().'.'.$ext;
-                if (@move_uploaded_file($_FILES['custom_voice']['tmp_name'], $uploadDir . $newName)) $custom_voice = 'assets/uploads/custom/'.$newName;
+            // Decode Base64 Voice Note if present
+            if (!empty($_POST['custom_voice_base64'])) {
+                $data = $_POST['custom_voice_base64'];
+                if (preg_match('/^data:audio\/(\w+);base64,/', $data, $type)) {
+                    $data = substr($data, strpos($data, ',') + 1);
+                    $ext = strtolower($type[1]); // e.g., webm, ogg, mp3
+                    $data = base64_decode($data);
+                    $newName = 'voice_'.time().'.'.$ext;
+                    if (file_put_contents($uploadDir . $newName, $data)) {
+                        $custom_voice = 'assets/uploads/custom/'.$newName;
+                    }
+                }
             }
         }
 
@@ -182,15 +184,24 @@ require_once __DIR__ . '/../includes/customer_header.php';
             </div>
             <div class="row g-3">
               <div class="col-md-6">
-                <label class="form-label fw-bold">Reference Picture</label>
-                <input type="file" name="custom_image" class="form-control mb-2" accept="image/*">
-                <input type="text" name="custom_image_url" class="form-control" placeholder="Or paste an image link (URL)">
-                <small class="text-muted">Recommended for live/Vercel uploads.</small>
+                <label class="form-label fw-bold"><i class="bi bi-link-45deg me-1"></i>Picture Reference (URL)</label>
+                <input type="text" name="custom_image_url" class="form-control" placeholder="Paste Direct Link from postimages.org">
+                <small class="text-muted">Links work best on our system! 🏙️</small>
               </div>
               <div class="col-md-6">
-                <label class="form-label fw-bold">Voice Instruction</label>
-                <input type="file" name="custom_voice" class="form-control" accept="audio/*">
-                <small class="text-muted">Upload a voice note (mp3/m4a/wav)</small>
+                <label class="form-label fw-bold"><i class="bi bi-mic-fill me-1"></i>Voice Note Instruction</label>
+                <div id="voiceRecorderUI" class="p-2 border rounded bg-white">
+                  <div class="d-flex align-items-center gap-2">
+                    <button type="button" id="startRecord" class="btn btn-sm btn-outline-danger"><i class="bi bi-record-circle me-1"></i>Record</button>
+                    <button type="button" id="stopRecord" class="btn btn-sm btn-danger d-none"><i class="bi bi-stop-circle me-1"></i>Stop</button>
+                    <span id="recordTimer" class="small text-muted d-none">0:00</span>
+                    <div id="voicePreview" class="d-none flex-grow-1">
+                      <audio id="audioPlayback" controls style="height: 30px; width: 100%;"></audio>
+                    </div>
+                  </div>
+                  <input type="hidden" name="custom_voice_base64" id="customVoiceBase64">
+                </div>
+                <small class="text-muted">Explain your design in your own voice! 🎙️</small>
               </div>
             </div>
           </div>
@@ -321,6 +332,58 @@ styleEl.textContent = `
 .style-selectable.selected .style-check { display:flex; }
 `;
 document.head.appendChild(styleEl);
+// Voice Recorder Logic
+let mediaRecorder;
+let audioChunks = [];
+let startTime;
+let timerInterval;
+
+const startBtn = document.getElementById('startRecord');
+const stopBtn = document.getElementById('stopRecord');
+const timerDisp = document.getElementById('recordTimer');
+const preview = document.getElementById('voicePreview');
+const audioPlayback = document.getElementById('audioPlayback');
+const base64Input = document.getElementById('customVoiceBase64');
+
+if (startBtn) {
+    startBtn.onclick = async () => {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
+        mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const reader = new FileReader();
+            reader.readAsDataURL(audioBlob);
+            reader.onloadend = () => {
+                base64Input.value = reader.result;
+                audioPlayback.src = reader.result;
+                preview.classList.remove('d-none');
+            };
+            stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        startBtn.classList.add('d-none');
+        stopBtn.classList.remove('d-none');
+        timerDisp.classList.remove('d-none');
+        
+        startTime = Date.now();
+        timerInterval = setInterval(() => {
+            const sec = Math.floor((Date.now() - startTime) / 1000);
+            timerDisp.textContent = Math.floor(sec/60) + ":" + (sec%60).toString().padStart(2,'0');
+        }, 1000);
+    };
+
+    stopBtn.onclick = () => {
+        mediaRecorder.stop();
+        stopBtn.classList.add('d-none');
+        startBtn.classList.remove('d-none');
+        startBtn.textContent = "Re-record";
+        clearInterval(timerInterval);
+    };
+}
 </script>
 
 <?php require_once __DIR__ . '/../includes/customer_footer.php'; ?>
