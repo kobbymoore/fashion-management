@@ -40,7 +40,7 @@ class DbSessionHandler implements SessionHandlerInterface
         return true;
     }
 
-    public function read(string $id): mixed
+    public function read(string $id): string
     {
         $stmt = $this->pdo->prepare(
             "SELECT session_data FROM php_sessions
@@ -71,7 +71,7 @@ class DbSessionHandler implements SessionHandlerInterface
         return $stmt->execute([$id]);
     }
 
-    public function gc(int $max_lifetime): mixed
+    public function gc(int $max_lifetime): int
     {
         $stmt = $this->pdo->prepare(
             "DELETE FROM php_sessions WHERE last_activity < ?"

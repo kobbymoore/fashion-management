@@ -54,21 +54,22 @@ if (APP_DEBUG) {
 define('PAYSTACK_PUBLIC_KEY', getenv('PAYSTACK_PUBLIC_KEY') ?: 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
 define('PAYSTACK_SECRET_KEY', getenv('PAYSTACK_SECRET_KEY') ?: 'sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
 
-// ─── Start Session ───────────────────────────────────────────
-if (session_status() === PHP_SESSION_NONE) {
-    // Register DB-backed session handler so sessions persist across
-    // Vercel serverless invocations (file-based /tmp is ephemeral).
-    require_once __DIR__ . '/session_handler.php';
-    registerDbSessionHandler(getDB(), SESSION_TIMEOUT);
+    // Ensure session start block is deferred until config.php fully loads
+    if (session_status() === PHP_SESSION_NONE) {
+        // Must include db.php explicitly here because config.php is loaded
+        // before db.php in the require chain, so getDB() may not exist yet.
+        require_once __DIR__ . '/session_handler.php';
+        require_once __DIR__ . '/db.php';
+        registerDbSessionHandler(getDB(), SESSION_TIMEOUT);
 
-    ini_set('session.gc_maxlifetime', SESSION_TIMEOUT);
+        ini_set('session.gc_maxlifetime', SESSION_TIMEOUT);
 
-    session_name(SESSION_NAME);
-    session_set_cookie_params([
-        'lifetime' => SESSION_TIMEOUT,
-        'path'     => '/',          // Always '/' – works on both Vercel and XAMPP
-        'httponly' => true,
-        'samesite' => 'Lax',
-    ]);
-    session_start();
-}
+        session_name(SESSION_NAME);
+        session_set_cookie_params([
+            'lifetime' => SESSION_TIMEOUT,
+            'path'     => '/',          // Always '/' – works on both Vercel and XAMPP
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+        session_start();
+    }
