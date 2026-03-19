@@ -34,6 +34,14 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['assign'])) {
     setFlash('success','Order assigned successfully.'); redirect(BASE_URL.'/admin/order_detail.php?id='.$id);
 }
 
+// Handle set price
+if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['set_price'])) {
+    $newPrice = (float)$_POST['total_amount'];
+    $db->prepare("UPDATE orders SET total_amount=?,updated_at=NOW() WHERE id=?")->execute([$newPrice, $id]);
+    auditLog('set_order_price',"Admin set price for Order #$id to $newPrice");
+    setFlash('success','Order price updated successfully.'); redirect(BASE_URL.'/admin/order_detail.php?id='.$id);
+}
+
 $statusSteps = ['pending'=>0,'approved'=>1,'in-progress'=>2,'completed'=>3,'cancelled'=>3];
 $curStep = $statusSteps[$order['status']] ?? 0;
 require_once __DIR__ . '/../includes/header.php';
@@ -68,7 +76,17 @@ require_once __DIR__ . '/../includes/header.php';
           </div>
           <div class="col-sm-6"><label class="text-muted small">Fabric</label><p class="fw-600"><?= clean($order['fabric_name'] ?? '—') ?> <?= $order['fabric_name']?'('.clean($order['color']).')':'' ?></p></div>
           <div class="col-sm-6"><label class="text-muted small">Quantity</label><p class="fw-600"><?= $order['quantity'] ?></p></div>
-          <div class="col-sm-6"><label class="text-muted small">Total Amount</label><p class="fw-600 text-pink fs-5"><?= ghcFormat($order['total_amount']) ?></p></div>
+          <div class="col-sm-6">
+            <label class="text-muted small">Total Amount</label>
+            <div class="d-flex align-items-center gap-2">
+              <p class="fw-600 text-pink fs-5 mb-0"><?= ghcFormat($order['total_amount']) ?></p>
+              <?php if ($order['total_amount'] <= 0 || $order['status'] === 'pending'): ?>
+                <button class="btn btn-sm btn-outline-fashion" data-bs-toggle="modal" data-bs-target="#priceModal">
+                  <i class="bi bi-pencil me-1"></i>Set Price
+                </button>
+              <?php endif; ?>
+            </div>
+          </div>
           <?php if ($order['notes']): ?>
           <div class="col-12"><label class="text-muted small">General Notes</label><p class="bg-light rounded p-2 small"><?= clean($order['notes']) ?></p></div>
           <?php endif; ?>
@@ -84,11 +102,12 @@ require_once __DIR__ . '/../includes/header.php';
               <?php endif; ?>
 
               <div class="row g-3">
-                <?php if ($order['custom_image']): ?>
+                <?php if ($order['custom_image'] || $order['custom_image_url']): ?>
                   <div class="col-md-6">
                     <label class="text-muted small d-block mb-1">Reference Image</label>
-                    <a href="<?= BASE_URL ?>/<?= $order['custom_image'] ?>" target="_blank">
-                      <img src="<?= BASE_URL ?>/<?= $order['custom_image'] ?>" class="img-fluid rounded border shadow-sm" style="max-height:200px;" alt="Design Reference">
+                    <?php $displayRef = $order['custom_image_url'] ?: BASE_URL . '/' . $order['custom_image']; ?>
+                    <a href="<?= $displayRef ?>" target="_blank">
+                      <img src="<?= $displayRef ?>" class="img-fluid rounded border shadow-sm" style="max-height:200px;" alt="Design Reference">
                     </a>
                   </div>
                 <?php endif; ?>
@@ -196,6 +215,24 @@ require_once __DIR__ . '/../includes/header.php';
         <a href="<?= BASE_URL ?>/admin/measurement_form.php?customer_id=<?= $order['customer_id'] ?>" class="btn btn-outline-primary btn-sm"><i class="bi bi-rulers me-2"></i>View/Add Measurements</a>
         <a href="<?= BASE_URL ?>/admin/orders.php" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-2"></i>Back to Orders</a>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Price Modal -->
+<div class="modal fade" id="priceModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Set Order Price</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <form method="POST">
+        <div class="modal-body">
+          <input type="hidden" name="set_price" value="1">
+          <label class="form-label fw-600">Total Amount (GH₵)</label>
+          <input type="number" step="0.01" name="total_amount" class="form-control" value="<?= $order['total_amount'] ?>" required>
+          <small class="text-muted">Set the quoted price for this custom design.</small>
+        </div>
+        <div class="modal-footer"><button class="btn btn-fashion">Update Price</button></div>
+      </form>
     </div>
   </div>
 </div>

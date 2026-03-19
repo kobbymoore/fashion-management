@@ -24,6 +24,7 @@ if (!$res->fetch()) {
     $db->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS custom_image VARCHAR(255)");
     $db->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS custom_voice VARCHAR(255)");
     $db->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS custom_description TEXT");
+    $db->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS custom_image_url TEXT");
 }
 
 $errors = [];
@@ -52,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         $custom_img = null;
         $custom_voice = null;
         $custom_desc = trim($_POST['custom_description'] ?? '');
+        $custom_img_url = trim($_POST['custom_image_url'] ?? '');
 
         // Handle Custom Uploads
         if ($is_custom) {
@@ -72,8 +74,8 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
 
         $sid_val = ($styleId == -1) ? null : $styleId;
 
-        $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, custom_image, custom_voice, custom_description) VALUES(?,?,?,?,'pending',?,?,?,?,?,?,?,?,?,?)")
-           ->execute([$cid,$sid_val,$fabricId,$qty,$notes,$sBust,$sWaist,$sHips,$sHeight,$total, $is_custom, $custom_img, $custom_voice, $custom_desc]);
+        $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, custom_image, custom_voice, custom_description, custom_image_url) VALUES(?,?,?,?,'pending',?,?,?,?,?,?,?,?,?,?,?)")
+           ->execute([$cid,$sid_val,$fabricId,$qty,$notes,$sBust,$sWaist,$sHips,$sHeight,$total, $is_custom, $custom_img, $custom_voice, $custom_desc, $custom_img_url]);
         
         $newId = $db->lastInsertId();
         auditLog('place_order',"Customer #$cid placed ".($is_custom?'CUSTOM ':'')."order #$newId");
@@ -170,8 +172,9 @@ require_once __DIR__ . '/../includes/customer_header.php';
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label fw-bold">Reference Picture</label>
-                <input type="file" name="custom_image" class="form-control" accept="image/*">
-                <small class="text-muted">Upload a photo of the design</small>
+                <input type="file" name="custom_image" class="form-control mb-2" accept="image/*">
+                <input type="text" name="custom_image_url" class="form-control" placeholder="Or paste an image link (URL)">
+                <small class="text-muted">Recommended for live/Vercel uploads.</small>
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-bold">Voice Instruction</label>
