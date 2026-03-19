@@ -28,6 +28,15 @@ foreach ($checkCols as $col) {
         $db->exec($sql);
     }
 }
+// Final set of columns for commitment/payment
+$payCols = ['payment_method','payment_status','payment_reference'];
+foreach($payCols as $pc) {
+    if ($pc === 'payment_status') {
+        $db->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS $pc VARCHAR(30) DEFAULT 'unpaid'");
+    } else {
+        $db->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS $pc TEXT");
+    }
+}
 // Ensure custom_voice is TEXT (in case it was previously VARCHAR)
 $db->exec("ALTER TABLE orders ALTER COLUMN custom_voice TYPE TEXT");
 
@@ -57,11 +66,14 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         $custom_voice = $_POST['custom_voice_base64'] ?? null;
         $custom_desc = trim($_POST['custom_description'] ?? '');
         $custom_img_url = trim($_POST['custom_image_url'] ?? '');
+        $pay_method = $_POST['payment_method'] ?? 'cash';
+        $pay_ref    = trim($_POST['payment_reference'] ?? '');
+        $pay_status = (!empty($pay_ref)) ? 'pending_verification' : 'unpaid';
 
         $sid_val = ($styleId == -1) ? null : $styleId;
 
-        $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, custom_voice, custom_description, custom_image_url) VALUES(?,?,?,?,'pending',?,?,?,?,?,?,?,?,?,?)")
-           ->execute([$cid,$sid_val,$fabricId,$qty,$notes,$sBust,$sWaist,$sHips,$sHeight,$total, $is_custom, $custom_voice, $custom_desc, $custom_img_url]);
+        $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, custom_voice, custom_description, custom_image_url, payment_method, payment_status, payment_reference) VALUES(?,?,?,?,'pending',?,?,?,?,?,?,?,?,?,?,?,?,?)")
+           ->execute([$cid,$sid_val,$fabricId,$qty,$notes,$sBust,$sWaist,$sHips,$sHeight,$total, $is_custom, $custom_voice, $custom_desc, $custom_img_url, $pay_method, $pay_status, $pay_ref]);
         
         $newId = $db->lastInsertId();
         auditLog('place_order',"Customer #$cid placed ".($is_custom?'CUSTOM ':'')."order #$newId");
@@ -219,12 +231,34 @@ require_once __DIR__ . '/../includes/customer_header.php';
             <div class="col-6 col-sm-3"><label class="form-label small fw-600">Height</label><input type="number" step="0.5" class="form-control form-control-sm" name="self_height" value="<?= $_POST['self_height']??'' ?>" placeholder="e.g. 64"></div>
           </div>
 
-          <div class="price-estimate-box alert alert-info d-none mt-3 d-flex align-items-center justify-content-between">
-            <span><i class="bi bi-calculator me-2"></i>Estimated Cost:</span>
-            <strong id="priceEstimate" class="fs-5">GH₵ 0.00</strong>
+          <div class="card bg-light border-0 mt-4">
+            <div class="card-body p-3">
+              <h6 class="text-pink mb-3"><i class="bi bi-shield-check me-2"></i>Payment & Commitment</h6>
+              <div class="row g-3">
+                <div class="col-sm-6">
+                  <label class="form-label fw-600">Intended Payment Method *</label>
+                  <select class="form-select" name="payment_method" required>
+                    <option value="mobile_money">Mobile Money (MTN/Vodafone/AirtelTigo)</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="cash">Cash on Delivery / Pickup</option>
+                  </select>
+                </div>
+                <div class="col-sm-6">
+                  <label class="form-label fw-600">Transaction ID (Optional)</label>
+                  <input type="text" class="form-control" name="payment_reference" placeholder="Enter ID if paying upfront">
+                  <small class="text-muted">Only if you want to pay before we start! 💳</small>
+                </div>
+              </div>
+              <div class="form-check mt-3">
+                <input class="form-check-input" type="checkbox" id="commitment" required>
+                <label class="form-check-label small fw-bold" for="commitment">
+                  I understand this is a binding order and I commit to paying the final amount upon completion/delivery.
+                </label>
+              </div>
+            </div>
           </div>
-          <hr class="divider-pink">
-          <button type="submit" class="btn btn-fashion"><i class="bi bi-bag-check-fill me-2"></i>Submit Order</button>
+
+          <button type="submit" class="btn btn-fashion w-100 mt-4"><i class="bi bi-bag-check-fill me-2"></i>Confirm & Place Order</button>
         </form>
       </div>
     </div>

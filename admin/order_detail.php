@@ -34,6 +34,13 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['assign'])) {
     setFlash('success','Order assigned successfully.'); redirect(BASE_URL.'/admin/order_detail.php?id='.$id);
 }
 
+if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['confirm_payment'])) {
+    $oid = (int)$_POST['order_id'];
+    $db->prepare("UPDATE orders SET payment_status='paid' WHERE id=?")->execute([$oid]);
+    auditLog('confirm_payment',"Confirmed payment for order #$oid");
+    setFlash('success',"Payment confirmed!"); redirect(BASE_URL.'/admin/order_detail.php?id='.$oid);
+}
+
 // Handle set price
 if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['set_price'])) {
     $newPrice = (float)$_POST['total_amount'];
@@ -128,6 +135,38 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
           </div>
           <?php endif; ?>
+          <!-- Payment Info -->
+          <div class="col-12 mt-3">
+              <div class="p-3 border rounded bg-light shadow-sm">
+                  <h6 class="text-muted mb-3 small fw-bold"><i class="bi bi-shield-check me-2"></i>PAYMENT & COMMITMENT</h6>
+                  <div class="row g-2">
+                      <div class="col-sm-4">
+                          <label class="text-muted small d-block">Method</label>
+                          <span class="badge bg-secondary"><?= strtoupper(str_replace('_',' ',$order['payment_method']??'CASH')) ?></span>
+                      </div>
+                      <div class="col-sm-4">
+                          <label class="text-muted small d-block">Status</label>
+                          <?php 
+                            $pStat = $order['payment_status'] ?? 'unpaid';
+                            $pCls = ['paid'=>'success','pending_verification'=>'warning','unpaid'=>'danger'][$pStat] ?? 'secondary';
+                          ?>
+                          <span class="badge bg-<?= $pCls ?>"><?= strtoupper(str_replace('_',' ',$pStat)) ?></span>
+                      </div>
+                      <div class="col-sm-4">
+                          <label class="text-muted small d-block">Reference / TXID</label>
+                          <code class="small"><?= clean($order['payment_reference'] ?: 'None Provided') ?></code>
+                      </div>
+                  </div>
+                  <?php if (($order['payment_status'] ?? 'unpaid') !== 'paid'): ?>
+                  <form method="POST" class="mt-3">
+                      <input type="hidden" name="order_id" value="<?= $order['id'] ?>">
+                      <button type="submit" name="confirm_payment" class="btn btn-sm btn-success w-100">
+                          <i class="bi bi-check-circle me-1"></i>Confirm Payment Received
+                      </button>
+                  </form>
+                  <?php endif; ?>
+              </div>
+          </div>
         </div>
         <?php if ($order['self_bust'] || $order['self_waist']): ?>
         <hr class="divider-pink">
