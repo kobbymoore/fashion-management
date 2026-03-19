@@ -249,6 +249,23 @@ require_once __DIR__ . '/../includes/customer_header.php';
                   <small class="text-muted">Only if you want to pay before we start! 💳</small>
                 </div>
               </div>
+
+              <!-- Payment Instructions Box -->
+              <div id="paymentInstructions" class="mt-3 p-3 rounded border border-info bg-info bg-opacity-10" style="display:none;">
+                  <h6 class="text-info-emphasis small fw-bold mb-2"><i class="bi bi-info-circle me-1"></i>How to Pay:</h6>
+                  <div id="momoDetails" style="display:none;">
+                      <p class="small mb-1"><strong>MTN/Vodafone/AirtelTigo:</strong> Send amount to <strong>055 342 3057</strong></p>
+                      <p class="small mb-0 text-muted">Reference: [Your Name] / [Order]</p>
+                  </div>
+                  <div id="bankDetails" style="display:none;">
+                      <p class="small mb-1"><strong>Bank:</strong> Ecobank Ghana</p>
+                      <p class="small mb-1"><strong>Account Name:</strong> Fashion Studio GH</p>
+                      <p class="small mb-0"><strong>Account Number:</strong> 90210100171322</p>
+                  </div>
+                  <div id="cashDetails" style="display:none;">
+                      <p class="small mb-0"><strong>Cash:</strong> Please pay at our studio in Adum, Kumasi upon pickup.</p>
+                  </div>
+              </div>
               <div class="form-check mt-3">
                 <input class="form-check-input" type="checkbox" id="commitment" required>
                 <label class="form-check-label small fw-bold" for="commitment">
@@ -400,6 +417,19 @@ if (startBtn) {
         clearInterval(timerInterval);
     };
 }
+
+// Payment Toggle Logic
+document.querySelector('select[name="payment_method"]')?.addEventListener('change', function() {
+    const instr = document.getElementById('paymentInstructions');
+    const momo = document.getElementById('momoDetails');
+    const bank = document.getElementById('bankDetails');
+    const cash = document.getElementById('cashDetails');
+
+    instr.style.display = 'block';
+    momo.style.display = this.value === 'mobile_money' ? 'block' : 'none';
+    bank.style.display = this.value === 'bank_transfer' ? 'block' : 'none';
+    cash.style.display = this.value === 'cash' ? 'block' : 'none';
+});
 </script>
 
 <?php require_once __DIR__ . '/../includes/customer_footer.php'; ?>
