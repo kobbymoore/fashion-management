@@ -17,6 +17,15 @@ $cid = $customer['id'];
 $styles  = $db->query("SELECT * FROM styles WHERE is_active=TRUE ORDER BY name")->fetchAll();
 $fabrics = $db->query("SELECT * FROM fabrics WHERE quantity_yards > 0 ORDER BY name")->fetchAll();
 
+// Add custom order fields if missing (Schema Check) - Safe Migration
+$res = $db->query("SELECT column_name FROM information_schema.columns WHERE table_name='orders' AND column_name='is_custom'");
+if (!$res->fetch()) {
+    $db->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_custom BOOLEAN DEFAULT FALSE");
+    $db->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS custom_image VARCHAR(255)");
+    $db->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS custom_voice VARCHAR(255)");
+    $db->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS custom_description TEXT");
+}
+
 $errors = [];
 if ($_SERVER['REQUEST_METHOD']==='POST') {
     $styleId  = (int)($_POST['style_id'] ?? 0);
@@ -32,18 +41,46 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     if (!$fabricId) $errors[] = 'Please select a fabric.';
 
     if (!$errors) {
-        $styleRow = $db->prepare("SELECT base_price FROM styles WHERE id=?");
-        $styleRow->execute([$styleId]); $styleRow = $styleRow->fetch();
+        $styleRow = null;
+        if ($styleId > 0) {
+            $styleRow = $db->prepare("SELECT base_price FROM styles WHERE id=?");
+            $styleRow->execute([$styleId]); $styleRow = $styleRow->fetch();
+        }
         $total = ($styleRow['base_price'] ?? 0) * $qty;
+        
+        $is_custom = ($styleId == -1) ? 1 : 0;
+        $custom_img = null;
+        $custom_voice = null;
+        $custom_desc = trim($_POST['custom_description'] ?? '');
 
-        $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount) VALUES(?,?,?,?,'pending',?,?,?,?,?,?)")
-           ->execute([$cid,$styleId,$fabricId,$qty,$notes,$sBust,$sWaist,$sHips,$sHeight,$total]);
+        // Handle Custom Uploads
+        if ($is_custom) {
+            $uploadDir = __DIR__ . '/../assets/uploads/custom/';
+            if (!is_dir($uploadDir)) @mkdir($uploadDir, 0777, true);
+
+            if (isset($_FILES['custom_image']) && $_FILES['custom_image']['error'] === UPLOAD_ERR_OK) {
+                $ext = pathinfo($_FILES['custom_image']['name'], PATHINFO_EXTENSION);
+                $newName = 'custom_img_'.time().'.'.$ext;
+                if (@move_uploaded_file($_FILES['custom_image']['tmp_name'], $uploadDir . $newName)) $custom_img = 'assets/uploads/custom/'.$newName;
+            }
+            if (isset($_FILES['custom_voice']) && $_FILES['custom_voice']['error'] === UPLOAD_ERR_OK) {
+                $ext = pathinfo($_FILES['custom_voice']['name'], PATHINFO_EXTENSION);
+                $newName = 'custom_audio_'.time().'.'.$ext;
+                if (@move_uploaded_file($_FILES['custom_voice']['tmp_name'], $uploadDir . $newName)) $custom_voice = 'assets/uploads/custom/'.$newName;
+            }
+        }
+
+        $sid_val = ($styleId == -1) ? null : $styleId;
+
+        $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, custom_image, custom_voice, custom_description) VALUES(?,?,?,?,'pending',?,?,?,?,?,?,?,?,?,?)")
+           ->execute([$cid,$sid_val,$fabricId,$qty,$notes,$sBust,$sWaist,$sHips,$sHeight,$total, $is_custom, $custom_img, $custom_voice, $custom_desc]);
+        
         $newId = $db->lastInsertId();
-        auditLog('place_order',"Customer #$cid placed order #$newId");
+        auditLog('place_order',"Customer #$cid placed ".($is_custom?'CUSTOM ':'')."order #$newId");
 
         // Notify staff
         $staffUsers = $db->query("SELECT id FROM users WHERE role IN('staff','admin') AND is_active=TRUE")->fetchAll();
-        foreach ($staffUsers as $su) addNotification($su['id'], "New order #$newId received from ".clean($user['name']).".");
+        foreach ($staffUsers as $su) addNotification($su['id'], "New ".($is_custom?'CUSTOM ':'')."order #$newId received from ".clean($user['name']).".");
 
         setFlash('success',"Order #$newId placed successfully! Our team will review it shortly.");
         redirect(BASE_URL.'/customer/order_history.php');
@@ -92,6 +129,26 @@ require_once __DIR__ . '/../includes/customer_header.php';
           </label>
         </div>
       <?php endforeach; ?>
+
+      <!-- CUSTOM DESIGN OPTION -->
+      <div class="col-6 col-sm-4 col-lg-3">
+        <label class="style-selector-card" for="style_custom">
+          <input type="radio" name="style_id_sel" id="style_custom" value="-1" class="d-none style-radio"
+                 <?= (($_POST['style_id'] ?? 0) == -1) ? 'checked' : '' ?>>
+          <div class="style-card style-selectable bg-pink-50 border-pink" data-id="-1" data-price="0">
+            <div class="d-flex flex-column align-items-center justify-content-center" style="height:150px; background:white;">
+              <i class="bi bi-pencil-square text-pink fs-1"></i>
+              <span class="fw-bold text-pink small mt-2">REQUEST CUSTOM</span>
+            </div>
+            <div class="style-card-body">
+              <div class="style-card-title">Bespoke / Custom</div>
+              <div class="style-card-price">Price: To be Quoted</div>
+              <small class="text-muted">Upload your own design & ideas</small>
+            </div>
+            <div class="style-check"><i class="bi bi-check-circle-fill"></i></div>
+          </div>
+        </label>
+      </div>
     </div>
   </div>
 
@@ -100,8 +157,29 @@ require_once __DIR__ . '/../includes/customer_header.php';
     <div class="card-studio">
       <div class="card-header"><h5><i class="bi bi-clipboard-fill text-pink me-2"></i>Order Details</h5></div>
       <div class="card-body">
-        <form method="POST" id="orderForm">
+        <form method="POST" id="orderForm" enctype="multipart/form-data">
           <input type="hidden" name="style_id" id="hiddenStyleId" value="<?= (int)($_POST['style_id']??0) ?>">
+
+          <!-- Custom Order Fields -->
+          <div id="customOrderFields" class="mb-4 p-3 border rounded bg-light" style="display:none;">
+            <h6 class="text-pink mb-3"><i class="bi bi-magic me-2"></i>Custom Request Details</h6>
+            <div class="mb-3">
+              <label class="form-label fw-bold">Design Description *</label>
+              <textarea name="custom_description" class="form-control" rows="4" placeholder="Describe the outfit, neckline, length, etc."></textarea>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Reference Picture</label>
+                <input type="file" name="custom_image" class="form-control" accept="image/*">
+                <small class="text-muted">Upload a photo of the design</small>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Voice Instruction</label>
+                <input type="file" name="custom_voice" class="form-control" accept="audio/*">
+                <small class="text-muted">Upload a voice note (mp3/m4a/wav)</small>
+              </div>
+            </div>
+          </div>
           <div class="row g-3">
             <div class="col-sm-8">
               <label class="form-label fw-600">Fabric *</label>

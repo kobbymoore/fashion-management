@@ -71,13 +71,24 @@ require_once __DIR__ . '/../includes/customer_header.php';
             <div class="fw-700 fs-5 text-pink mt-1"><?= ghcFormat($o['total_amount']) ?></div>
             <div class="text-muted" style="font-size:.75rem;">Qty: <?= $o['quantity'] ?></div>
             
-            <?php if ($o['status'] === 'approved' && ($o['payment_status'] ?? 'unpaid') !== 'paid'): ?>
-              <a href="<?= BASE_URL ?>/customer/pay.php?id=<?= $o['id'] ?>" class="btn btn-sm btn-fashion mt-2">
-                <i class="bi bi-credit-card me-1"></i>Pay Now
-              </a>
-            <?php elseif (($o['payment_status'] ?? '') === 'paid'): ?>
-              <div class="badge bg-success mt-2"><i class="bi bi-check-circle me-1"></i>Paid Online</div>
-            <?php endif; ?>
+            <div class="d-flex flex-column align-items-end gap-2 mt-2">
+              <?php if ($o['status'] === 'pending'): ?>
+                <form action="<?= BASE_URL ?>/customer/cancel_order.php" method="POST" onsubmit="return confirm('Are you sure you want to cancel this order?')">
+                  <input type="hidden" name="order_id" value="<?= $o['id'] ?>">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-x-circle me-1"></i>Cancel Order
+                  </button>
+                </form>
+              <?php endif; ?>
+
+              <?php if ($o['status'] === 'approved' && ($o['payment_status'] ?? 'unpaid') !== 'paid'): ?>
+                <a href="<?= BASE_URL ?>/customer/pay.php?id=<?= $o['id'] ?>" class="btn btn-sm btn-fashion">
+                  <i class="bi bi-credit-card me-1"></i>Pay Now
+                </a>
+              <?php elseif (($o['payment_status'] ?? '') === 'paid'): ?>
+                <div class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Paid Online</div>
+              <?php endif; ?>
+            </div>
           </div>
         </div>
 
