@@ -60,12 +60,54 @@ require_once __DIR__ . '/../includes/header.php';
           <?php endforeach; ?>
         </div>
         <div class="row g-3">
-          <div class="col-sm-6"><label class="text-muted small">Style</label><p class="fw-600"><?= clean($order['style_name'] ?? '—') ?></p></div>
+          <div class="col-sm-6"><label class="text-muted small">Style</label>
+            <p class="fw-600">
+              <?= clean($order['style_name'] ?? ($order['is_custom'] ? 'Bespoke Design' : '—')) ?>
+              <?php if ($order['is_custom']): ?><span class="badge bg-purple-100 text-purple-700 ms-2">Custom</span><?php endif; ?>
+            </p>
+          </div>
           <div class="col-sm-6"><label class="text-muted small">Fabric</label><p class="fw-600"><?= clean($order['fabric_name'] ?? '—') ?> <?= $order['fabric_name']?'('.clean($order['color']).')':'' ?></p></div>
           <div class="col-sm-6"><label class="text-muted small">Quantity</label><p class="fw-600"><?= $order['quantity'] ?></p></div>
           <div class="col-sm-6"><label class="text-muted small">Total Amount</label><p class="fw-600 text-pink fs-5"><?= ghcFormat($order['total_amount']) ?></p></div>
           <?php if ($order['notes']): ?>
-          <div class="col-12"><label class="text-muted small">Customer Notes</label><p class="bg-light rounded p-2 small"><?= clean($order['notes']) ?></p></div>
+          <div class="col-12"><label class="text-muted small">General Notes</label><p class="bg-light rounded p-2 small"><?= clean($order['notes']) ?></p></div>
+          <?php endif; ?>
+
+          <?php if ($order['is_custom']): ?>
+          <div class="col-12 mt-3">
+            <div class="p-3 border rounded bg-pink-50 border-pink-100">
+              <h6 class="text-pink mb-3"><i class="bi bi-magic me-2"></i>Bespoke Design Specifications</h6>
+              
+              <?php if ($order['custom_description']): ?>
+                <label class="text-muted small d-block mb-1">Detailed Description</label>
+                <p class="small mb-3"><?= nl2br(clean($order['custom_description'])) ?></p>
+              <?php endif; ?>
+
+              <div class="row g-3">
+                <?php if ($order['custom_image']): ?>
+                  <div class="col-md-6">
+                    <label class="text-muted small d-block mb-1">Reference Image</label>
+                    <a href="<?= BASE_URL ?>/<?= $order['custom_image'] ?>" target="_blank">
+                      <img src="<?= BASE_URL ?>/<?= $order['custom_image'] ?>" class="img-fluid rounded border shadow-sm" style="max-height:200px;" alt="Design Reference">
+                    </a>
+                  </div>
+                <?php endif; ?>
+
+                <?php if ($order['custom_voice']): ?>
+                  <div class="col-md-6">
+                    <label class="text-muted small d-block mb-1">Voice Instruction</label>
+                    <audio controls class="w-100 mt-2">
+                        <source src="<?= BASE_URL ?>/<?= $order['custom_voice'] ?>" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
+                    <a href="<?= BASE_URL ?>/<?= $order['custom_voice'] ?>" target="_blank" class="btn btn-sm btn-outline-secondary mt-2 w-100">
+                      <i class="bi bi-download me-1"></i>Download Audio
+                    </a>
+                  </div>
+                <?php endif; ?>
+              </div>
+            </div>
+          </div>
           <?php endif; ?>
         </div>
         <?php if ($order['self_bust'] || $order['self_waist']): ?>

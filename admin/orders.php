@@ -125,7 +125,14 @@ require_once __DIR__ . '/../includes/header.php';
           <tr>
             <td><a href="<?= BASE_URL ?>/admin/order_detail.php?id=<?= $o['id'] ?>" class="fw-600 text-pink">#<?= $o['id'] ?></a></td>
             <td><?= clean($o['customer_name']) ?></td>
-            <td class="small"><?= clean($o['style_name'] ?? '—') ?></td>
+            <td class="small">
+              <?php if ($o['is_custom']): ?>
+                <span class="badge bg-purple-100 text-purple-700 border-purple-200 mb-1" style="font-size:0.65rem">
+                  <i class="bi bi-magic me-1"></i>CUSTOM
+                </span><br>
+              <?php endif; ?>
+              <?= clean($o['style_name'] ?? 'Bespoke Order') ?>
+            </td>
             <td class="small"><?= clean($o['fabric_name'] ?? '—') ?></td>
             <td><?= $o['quantity'] ?></td>
             <td class="small"><?= clean($o['assigned_name'] ?? '—') ?></td>
