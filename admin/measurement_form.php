@@ -34,11 +34,11 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
 
     if ($mId) {
         $sql = "UPDATE measurements SET bust=?,waist=?,hips=?,height=?,shoulder=?,inseam=?,sleeve_length=?,neck=?,notes=?,recorded_by=? WHERE id=?";
-        $db->prepare($sql)->execute([...$vals, $notes, $user['id'], $mId]);
+        $db->prepare($sql)->execute([...array_values($vals), $notes, $user['id'], $mId]);
         auditLog('update_measurement',"Updated measurement #$mId for customer #$cId");
     } else {
         $sql = "INSERT INTO measurements(customer_id,bust,waist,hips,height,shoulder,inseam,sleeve_length,neck,notes,recorded_by) VALUES(?,?,?,?,?,?,?,?,?,?,?)";
-        $db->prepare($sql)->execute([$cId, ...$vals, $notes, $user['id']]);
+        $db->prepare($sql)->execute([$cId, ...array_values($vals), $notes, $user['id']]);
         auditLog('add_measurement',"Added measurement for customer #$cId");
     }
     setFlash('success','Measurements saved successfully!');
