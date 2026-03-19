@@ -166,6 +166,15 @@ require_once __DIR__ . '/../includes/customer_header.php';
 
           <!-- Custom Order Fields -->
           <div id="customOrderFields" class="mb-4 p-3 border rounded bg-light" style="display:none;">
+            <div class="alert alert-purple d-flex align-items-center mb-3" style="font-size: 0.85rem; border: 1px dashed var(--purple-300);">
+              <i class="bi bi-info-circle-fill fs-5 me-3"></i>
+              <div>
+                <strong>Pro Tip:</strong> For the best results, upload your design to 
+                <a href="https://postimages.org" target="_blank" class="fw-bold text-purple-700">postimages.org</a> 
+                and paste the <strong>Direct Link</strong> below! 🚀
+              </div>
+            </div>
+            
             <h6 class="text-pink mb-3"><i class="bi bi-magic me-2"></i>Custom Request Details</h6>
             <div class="mb-3">
               <label class="form-label fw-bold">Design Description *</label>
