@@ -30,7 +30,7 @@ define('DB_CHARSET', getenv('DB_CHARSET') ?: 'utf8');
 
 // ─── Session ─────────────────────────────────────────────────
 define('SESSION_NAME',    'fashion_sess');
-define('SESSION_TIMEOUT', 3600); // 1 hour
+define('SESSION_TIMEOUT', 28800); // 8 hours
 
 // ─── Paths ───────────────────────────────────────────────────
 define('ROOT_PATH',    dirname(__DIR__));
@@ -56,13 +56,19 @@ define('PAYSTACK_SECRET_KEY', getenv('PAYSTACK_SECRET_KEY') ?: 'sk_test_xxxxxxxx
 
 // ─── Start Session ───────────────────────────────────────────
 if (session_status() === PHP_SESSION_NONE) {
+    // Register DB-backed session handler so sessions persist across
+    // Vercel serverless invocations (file-based /tmp is ephemeral).
+    require_once __DIR__ . '/session_handler.php';
+    registerDbSessionHandler(getDB(), SESSION_TIMEOUT);
+
+    ini_set('session.gc_maxlifetime', SESSION_TIMEOUT);
+
     session_name(SESSION_NAME);
-    // Secure cookie path to prevent conflicts and leakage
     session_set_cookie_params([
         'lifetime' => SESSION_TIMEOUT,
-        'path'     => BASE_URL ?: '/',
+        'path'     => '/',          // Always '/' – works on both Vercel and XAMPP
         'httponly' => true,
-        'samesite' => 'Lax'
+        'samesite' => 'Lax',
     ]);
     session_start();
 }
