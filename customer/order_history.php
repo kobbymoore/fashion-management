@@ -93,7 +93,12 @@ require_once __DIR__ . '/../includes/customer_header.php';
                 
                 <?php if ($item['is_custom'] && ($item['custom_image'] || $item['custom_image_url'])): ?>
                     <?php 
-                        $refImg = $item['custom_image'] ? ( (strpos($item['custom_image'], 'http') === 0) ? $item['custom_image'] : BASE_URL . '/' . $item['custom_image'] ) : $item['custom_image_url']; 
+                        if ($item['custom_image']) {
+                            $isUrl = (strpos($item['custom_image'], 'http') === 0 || strpos($item['custom_image'], 'data:') === 0);
+                            $refImg = $isUrl ? $item['custom_image'] : BASE_URL . '/' . $item['custom_image'];
+                        } else {
+                            $refImg = $item['custom_image_url'];
+                        }
                     ?>
                     <a href="<?= $refImg ?>" target="_blank" class="ms-2" title="View Design Reference">
                         <i class="bi bi-image text-purple"></i>

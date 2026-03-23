@@ -24,8 +24,10 @@ foreach ($checkCols as $col) {
     $res->execute([$col]);
     if (!$res->fetch()) {
         $sql = "ALTER TABLE orders ADD COLUMN IF NOT EXISTS $col " . (($col === 'is_custom') ? "BOOLEAN DEFAULT FALSE" : "TEXT");
-        if ($col === 'custom_image') $sql = "ALTER TABLE orders ADD COLUMN IF NOT EXISTS $col VARCHAR(255)";
+        if ($col === 'custom_image') $sql = "ALTER TABLE orders ADD COLUMN IF NOT EXISTS $col TEXT";
         $db->exec($sql);
+        // Ensure custom_image is TEXT if it was previously VARCHAR
+        if ($col === 'custom_image') $db->exec("ALTER TABLE orders ALTER COLUMN custom_image TYPE TEXT");
     }
 }
 // Add batch_id for grouping multi-style orders
@@ -72,9 +74,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $custom_voice = $_POST['custom_voice_base64'] ?? null;
                 $custom_desc = trim($_POST['custom_description'] ?? '');
                 
-                // Handle Image Upload
-                $custom_img_path = null;
-                if (isset($_FILES['custom_image']) && $_FILES['custom_image']['error'] === UPLOAD_ERR_OK) {
+                // Handle Image (Prioritize Base64 for Vercel/Serverless compatibility)
+                $custom_img_path = $_POST['custom_image_base64'] ?? null;
+                
+                // Fallback to traditional upload for local environments if Base64 missing
+                if (!$custom_img_path && isset($_FILES['custom_image']) && $_FILES['custom_image']['error'] === UPLOAD_ERR_OK) {
                     $ext = pathinfo($_FILES['custom_image']['name'], PATHINFO_EXTENSION);
                     $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
                     if (in_array(strtolower($ext), $allowed)) {
@@ -220,8 +224,12 @@ require_once __DIR__ . '/../includes/customer_header.php';
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label fw-bold"><i class="bi bi-image me-1"></i>Official Design Reference (Upload)</label>
-                <input type="file" name="custom_image" class="form-control" accept="image/*">
+                <input type="file" id="customImageInput" class="form-control" accept="image/*">
+                <input type="hidden" name="custom_image_base64" id="customImageBase64">
                 <small class="text-muted">Upload a picture of the design you want! 🏙️</small>
+                <div id="imagePreview" class="mt-2 d-none">
+                    <img id="imgPreview" src="" class="img-thumbnail" style="max-height: 150px;">
+                </div>
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-bold"><i class="bi bi-mic-fill me-1"></i>Voice Note Instruction</label>
@@ -523,6 +531,25 @@ const timerDisp = document.getElementById('recordTimer');
 const preview = document.getElementById('voicePreview');
 const audioPlayback = document.getElementById('audioPlayback');
 const base64Input = document.getElementById('customVoiceBase64');
+const imageInput = document.getElementById('customImageInput');
+const imageBase64 = document.getElementById('customImageBase64');
+const imagePreview = document.getElementById('imagePreview');
+const imgPreview = document.getElementById('imgPreview');
+
+if (imageInput) {
+    imageInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                imageBase64.value = reader.result;
+                imgPreview.src = reader.result;
+                imagePreview.classList.remove('d-none');
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+}
 
 if (startBtn) {
     startBtn.onclick = async () => {

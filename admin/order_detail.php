@@ -123,7 +123,8 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php 
                       $displayRef = '';
                       if (!empty($order['custom_image'])) {
-                          $displayRef = (strpos($order['custom_image'], 'http') === 0) ? $order['custom_image'] : BASE_URL . '/' . $order['custom_image'];
+                          $isUrl = (strpos($order['custom_image'], 'http') === 0 || strpos($order['custom_image'], 'data:') === 0);
+                          $displayRef = $isUrl ? $order['custom_image'] : BASE_URL . '/' . $order['custom_image'];
                       } elseif (!empty($order['custom_image_url'])) {
                           $displayRef = $order['custom_image_url'];
                       }
