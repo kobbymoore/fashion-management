@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/auth_guard.php';
 requireStaff();
 $db = getDB();
+$user = currentUser();
 $id = (int)($_GET['id'] ?? 0);
 $stmt = $db->prepare("
     SELECT o.*, u.name AS customer_name, u.email, u.phone,
