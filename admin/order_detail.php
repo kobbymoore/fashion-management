@@ -38,6 +38,11 @@ $measure = $db->prepare("SELECT m.* FROM measurements m JOIN orders_measurements
 if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['assign'])) {
     $aId = (int)$_POST['assigned_to'];
     $db->prepare("UPDATE orders SET assigned_to=?,updated_at=NOW() WHERE id=?")->execute([$aId ?: null, $id]);
+    
+    if ($aId > 0) {
+        addNotification($aId, "Order #$id has been assigned to you by " . clean($user['name']) . ".");
+    }
+    
     auditLog('assign_order',"Order #$id assigned to user #$aId");
     setFlash('success','Order assigned successfully.'); redirect(BASE_URL.'/admin/order_detail.php?id='.$id);
 }

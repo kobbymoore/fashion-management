@@ -78,6 +78,15 @@ function addNotification(int $userId, string $message): void {
     $stmt->execute([$userId, $message]);
 }
 
+function getNotifications(int $userId, int $limit = 5): array {
+    $db = getDB();
+    $stmt = $db->prepare("SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT ?");
+    $stmt->bindValue(1, $userId, PDO::PARAM_INT);
+    $stmt->bindValue(2, $limit, PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->fetchAll();
+}
+
 function unreadCount(): int {
     if (!isLoggedIn()) return 0;
     $db   = getDB();
