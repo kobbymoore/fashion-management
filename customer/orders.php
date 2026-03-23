@@ -24,10 +24,16 @@ foreach ($checkCols as $col) {
     $res->execute([$col]);
     if (!$res->fetch()) {
         $sql = "ALTER TABLE orders ADD COLUMN IF NOT EXISTS $col " . (($col === 'is_custom') ? "BOOLEAN DEFAULT FALSE" : "TEXT");
-        if ($col === 'custom_image') $sql = "ALTER TABLE orders ADD COLUMN IF NOT EXISTS $col TEXT";
         $db->exec($sql);
-        // Ensure custom_image is TEXT if it was previously VARCHAR
-        if ($col === 'custom_image') $db->exec("ALTER TABLE orders ALTER COLUMN custom_image TYPE TEXT");
+    }
+    // Ensure custom_image and custom_voice are TEXT to handle large data (Base64)
+    if ($col === 'custom_image' || $col === 'custom_voice') {
+        try {
+            $db->exec("ALTER TABLE orders ALTER COLUMN $col TYPE TEXT");
+        } catch (Exception $e) {
+            // Fallback for MySQL if needed, though project seems to use PG
+            try { $db->exec("ALTER TABLE orders MODIFY $col TEXT"); } catch (Exception $e2) {}
+        }
     }
 }
 // Add batch_id for grouping multi-style orders
