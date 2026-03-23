@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/auth_guard.php';
-requireStaff();
+requireAdmin();
 $db = getDB();
 $activePage = 'customers';
 $isEdit = false;

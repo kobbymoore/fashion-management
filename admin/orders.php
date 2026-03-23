@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/auth_guard.php';
 requireStaff();
 $db = getDB();
+$user = currentUser();
 $activePage = 'orders';
 $pageTitle  = 'Order Management';
 $breadcrumb = ['Orders'=>null];
@@ -43,6 +44,10 @@ $perPage      = 15;
 
 $where = 'WHERE 1=1';
 $params = [];
+if ($user['role'] === 'staff') {
+    $where .= ' AND o.assigned_to = ?';
+    $params[] = $user['id'];
+}
 if ($filterStatus) { $where .= ' AND o.status=?'; $params[] = $filterStatus; }
 if ($search) { $where .= ' AND (u.name ILIKE ? OR CAST(o.id AS TEXT) LIKE ?)'; $params[] = "%$search%"; $params[] = "%$search%"; }
 
@@ -103,7 +108,17 @@ require_once __DIR__ . '/../includes/header.php';
 <!-- Quick status tabs -->
 <div class="d-flex gap-2 mb-3 flex-wrap">
   <?php
-  $statusCounts = $db->query("SELECT status, COUNT(*) cnt FROM orders GROUP BY status")->fetchAll(PDO::FETCH_KEY_PAIR);
+  $cntSql = "SELECT status, COUNT(*) cnt FROM orders";
+  $cntParams = [];
+  if ($user['role'] === 'staff') {
+      $cntSql .= " WHERE assigned_to = ?";
+      $cntParams = [$user['id']];
+  }
+  $cntSql .= " GROUP BY status";
+  $cntStmt = $db->prepare($cntSql);
+  $cntStmt->execute($cntParams);
+  $statusCounts = $cntStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+  
   $allStatuses = ['pending','approved','in-progress','completed','cancelled'];
   foreach ($allStatuses as $s):
     $cnt = $statusCounts[$s] ?? 0;

@@ -3,6 +3,7 @@ require_once __DIR__ . '/../includes/auth_guard.php';
 requireStaff();
 
 $db = getDB();
+$user = currentUser();
 $activePage = 'customers';
 $pageTitle  = 'Customer Records';
 $breadcrumb = ['Customers' => null];
@@ -40,9 +41,11 @@ require_once __DIR__ . '/../includes/header.php';
     <h3><i class="bi bi-people-fill text-pink me-2"></i>Customer Records</h3>
     <div class="subtitle"><?= $totalCount ?> customer(s) registered</div>
   </div>
+  <?php if ($user['role'] === 'admin'): ?>
   <a href="<?= BASE_URL ?>/admin/customer_edit.php" class="btn btn-fashion">
     <i class="bi bi-plus-lg me-2"></i>Add Customer
   </a>
+  <?php endif; ?>
 </div>
 
 <div class="card-studio">
@@ -90,8 +93,10 @@ require_once __DIR__ . '/../includes/header.php';
               <div class="d-flex gap-1">
                 <a href="<?= BASE_URL ?>/admin/customer_view.php?id=<?= $c['customer_id'] ?>"
                    class="btn btn-sm btn-outline-secondary" title="View"><i class="bi bi-eye"></i></a>
+                <?php if ($user['role'] === 'admin'): ?>
                 <a href="<?= BASE_URL ?>/admin/customer_edit.php?id=<?= $c['id'] ?>"
                    class="btn btn-sm btn-outline-fashion" title="Edit"><i class="bi bi-pencil"></i></a>
+                <?php endif; ?>
                 <a href="<?= BASE_URL ?>/admin/measurement_form.php?customer_id=<?= $c['customer_id'] ?>"
                    class="btn btn-sm btn-outline-primary" title="Measurements"><i class="bi bi-rulers"></i></a>
               </div>

@@ -21,6 +21,12 @@ $stmt->execute([$id]);
 $order = $stmt->fetch();
 if (!$order) { setFlash('danger','Order not found.'); redirect(BASE_URL.'/admin/orders.php'); }
 
+// Staff restriction
+if ($user['role'] === 'staff' && $order['assigned_to'] != $user['id']) {
+    setFlash('danger', 'Access denied. This order is not assigned to you.');
+    redirect(BASE_URL . '/admin/orders.php');
+}
+
 // Batch Items
 $batchItems = [];
 if ($order['batch_id']) {
@@ -101,7 +107,7 @@ require_once __DIR__ . '/../includes/header.php';
             <label class="text-muted small">Total Amount</label>
             <div class="d-flex align-items-center gap-2">
               <p class="fw-600 text-pink fs-5 mb-0"><?= ghcFormat($order['total_amount']) ?></p>
-              <?php if ($order['total_amount'] <= 0 || $order['status'] === 'pending'): ?>
+              <?php if ($user['role'] === 'admin' && ($order['total_amount'] <= 0 || $order['status'] === 'pending')): ?>
                 <button class="btn btn-sm btn-outline-fashion" data-bs-toggle="modal" data-bs-target="#priceModal">
                   <i class="bi bi-pencil me-1"></i>Set Price
                 </button>
@@ -206,6 +212,7 @@ require_once __DIR__ . '/../includes/header.php';
       </div>
     </div>
 
+    <?php if ($user['role'] === 'admin'): ?>
     <!-- Assignment -->
     <div class="card-studio">
       <div class="card-header"><h5><i class="bi bi-person-badge-fill text-pink me-2"></i>Assign to Tailor</h5></div>
@@ -227,6 +234,7 @@ require_once __DIR__ . '/../includes/header.php';
         <?php endif; ?>
       </div>
     </div>
+    <?php endif; ?>
   </div>
 
   <div class="col-lg-4">
@@ -264,7 +272,7 @@ require_once __DIR__ . '/../includes/header.php';
           </div>
         <?php else: ?>
           <p class="text-muted small">No payment recorded yet.</p>
-          <?php if ($order['status']==='completed'): ?>
+          <?php if ($user['role'] === 'admin' && $order['status']==='completed'): ?>
           <a href="<?= BASE_URL ?>/admin/sale_form.php?order_id=<?= $id ?>" class="btn btn-success btn-sm w-100">
             <i class="bi bi-plus me-1"></i>Record Payment
           </a>

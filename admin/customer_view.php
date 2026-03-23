@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/auth_guard.php';
 requireStaff();
+$user = currentUser();
 
 $db = getDB();
 $id = (int)($_GET['id'] ?? 0);
@@ -47,9 +48,11 @@ require_once __DIR__ . '/../includes/header.php';
         <li><i class="bi bi-calendar text-pink me-2"></i>Joined <?= date('M j, Y', strtotime($customer['created_at'])) ?></li>
       </ul>
       <div class="d-flex gap-2 mt-3">
+        <?php if ($user['role'] === 'admin'): ?>
         <a href="<?= BASE_URL ?>/admin/customer_edit.php?id=<?= $customer['user_id'] ?>" class="btn btn-fashion btn-sm flex-fill">
           <i class="bi bi-pencil me-1"></i>Edit
         </a>
+        <?php endif; ?>
         <a href="<?= BASE_URL ?>/admin/measurement_form.php?customer_id=<?= $id ?>" class="btn btn-outline-fashion btn-sm flex-fill">
           <i class="bi bi-rulers me-1"></i>Measure
         </a>
