@@ -71,14 +71,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $custom_qty = max(1, (int)($_POST['custom_quantity'] ?? 1));
                 $custom_voice = $_POST['custom_voice_base64'] ?? null;
                 $custom_desc = trim($_POST['custom_description'] ?? '');
-                $custom_img_url = trim($_POST['custom_image_url'] ?? '');
+                
+                // Handle Image Upload
+                $custom_img_path = null;
+                if (isset($_FILES['custom_image']) && $_FILES['custom_image']['error'] === UPLOAD_ERR_OK) {
+                    $ext = pathinfo($_FILES['custom_image']['name'], PATHINFO_EXTENSION);
+                    $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+                    if (in_array(strtolower($ext), $allowed)) {
+                        $filename = 'custom_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+                        $uploadDir = UPLOADS_PATH . 'custom_requests/';
+                        if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+                        
+                        if (move_uploaded_file($_FILES['custom_image']['tmp_name'], $uploadDir . $filename)) {
+                            $custom_img_path = 'assets/uploads/custom_requests/' . $filename;
+                        }
+                    }
+                }
                 
                 $fIdRaw = $_POST['custom_fabric_id'] ?? '';
                 $fId = ($fIdRaw === 'other') ? null : (int)$fIdRaw;
                 $customFabric = ($fIdRaw === 'other') ? trim($_POST['custom_fabric_details'] ?? '') : null;
 
-                $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,custom_fabric,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, custom_voice, custom_description, custom_image_url, payment_method, payment_status, payment_reference, batch_id) VALUES(?,?,?,?,?,'pending',?,?,?,?,?,0.00, TRUE, ?, ?, ?, ?, ?, ?, ?)")
-                   ->execute([$cid, null, $fId, $customFabric, $custom_qty, $notes, $sBust, $sWaist, $sHips, $sHeight, $custom_voice, $custom_desc, $custom_img_url, $pay_method, $pay_status, $pay_ref, $batch_id]);
+                $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,custom_fabric,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, custom_voice, custom_description, custom_image, payment_method, payment_status, payment_reference, batch_id) VALUES(?,?,?,?,?,'pending',?,?,?,?,?,0.00, TRUE, ?, ?, ?, ?, ?, ?, ?)")
+                   ->execute([$cid, null, $fId, $customFabric, $custom_qty, $notes, $sBust, $sWaist, $sHips, $sHeight, $custom_voice, $custom_desc, $custom_img_path, $pay_method, $pay_status, $pay_ref, $batch_id]);
             }
 
             // 2. Handle Standard Styles
@@ -191,11 +206,9 @@ require_once __DIR__ . '/../includes/customer_header.php';
           <!-- Custom Order Fields -->
           <div id="customOrderFields" class="mb-4 p-3 border rounded bg-light" style="display:none;">
             <div class="alert alert-purple d-flex align-items-center mb-3" style="font-size: 0.85rem; border: 1px dashed var(--purple-300);">
-              <i class="bi bi-info-circle-fill fs-5 me-3"></i>
+              <i class="bi bi-camera-fill fs-5 me-3"></i>
               <div>
-                <strong>Pro Tip:</strong> For the best results, upload your design to 
-                <a href="https://postimages.org" target="_blank" class="fw-bold text-purple-700">postimages.org</a> 
-                and paste the <strong>Direct Link</strong> below! 🚀
+                <strong>Direct Upload:</strong> You can now upload your design reference directly! No need for external sites. 🚀
               </div>
             </div>
             
@@ -206,9 +219,9 @@ require_once __DIR__ . '/../includes/customer_header.php';
             </div>
             <div class="row g-3">
               <div class="col-md-6">
-                <label class="form-label fw-bold"><i class="bi bi-link-45deg me-1"></i>Picture Reference (URL)</label>
-                <input type="text" name="custom_image_url" class="form-control" placeholder="Paste Direct Link from postimages.org">
-                <small class="text-muted">Links work best on our system! 🏙️</small>
+                <label class="form-label fw-bold"><i class="bi bi-image me-1"></i>Official Design Reference (Upload)</label>
+                <input type="file" name="custom_image" class="form-control" accept="image/*">
+                <small class="text-muted">Upload a picture of the design you want! 🏙️</small>
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-bold"><i class="bi bi-mic-fill me-1"></i>Voice Note Instruction</label>

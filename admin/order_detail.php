@@ -120,10 +120,21 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php if ($order['custom_image'] || $order['custom_image_url']): ?>
                   <div class="col-md-6">
                     <label class="text-muted small d-block mb-1">Reference Image</label>
-                    <?php $displayRef = $order['custom_image_url'] ?: BASE_URL . '/' . $order['custom_image']; ?>
+                    <?php 
+                      $displayRef = '';
+                      if (!empty($order['custom_image'])) {
+                          $displayRef = (strpos($order['custom_image'], 'http') === 0) ? $order['custom_image'] : BASE_URL . '/' . $order['custom_image'];
+                      } elseif (!empty($order['custom_image_url'])) {
+                          $displayRef = $order['custom_image_url'];
+                      }
+                    ?>
+                    <?php if ($displayRef): ?>
                     <a href="<?= $displayRef ?>" target="_blank">
                       <img src="<?= $displayRef ?>" class="img-fluid rounded border shadow-sm" style="max-height:200px;" alt="Design Reference">
                     </a>
+                    <?php else: ?>
+                      <p class="small text-muted italic">No image reference provided.</p>
+                    <?php endif; ?>
                   </div>
                 <?php endif; ?>
 

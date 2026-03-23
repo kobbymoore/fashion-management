@@ -90,6 +90,16 @@ require_once __DIR__ . '/../includes/customer_header.php';
               <div>
                 <span class="fw-bold"><?= clean($item['style_name'] ?? 'Custom Design') ?></span>
                 <?php if ($item['is_custom']): ?><span class="badge bg-purple-100 text-purple-700 mx-1">Custom</span><?php endif; ?>
+                
+                <?php if ($item['is_custom'] && ($item['custom_image'] || $item['custom_image_url'])): ?>
+                    <?php 
+                        $refImg = $item['custom_image'] ? ( (strpos($item['custom_image'], 'http') === 0) ? $item['custom_image'] : BASE_URL . '/' . $item['custom_image'] ) : $item['custom_image_url']; 
+                    ?>
+                    <a href="<?= $refImg ?>" target="_blank" class="ms-2" title="View Design Reference">
+                        <i class="bi bi-image text-purple"></i>
+                    </a>
+                <?php endif; ?>
+
                 <div class="text-muted smaller">
                     <i class="bi bi-layers me-1"></i><?= $item['fabric_id'] ? clean($item['fabric_name']).' ('.clean($item['fabric_color']).')' : 'Custom: '.clean($item['custom_fabric'] ?? '—') ?>
                     · Qty: <?= $item['quantity'] ?>
