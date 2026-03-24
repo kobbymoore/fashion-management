@@ -18,7 +18,7 @@ $styles  = $db->query("SELECT * FROM styles WHERE is_active=TRUE ORDER BY name")
 $fabrics = $db->query("SELECT * FROM fabrics WHERE quantity_yards > 0 ORDER BY name")->fetchAll();
 
 // Add custom order fields if missing (Schema Check) - Safe Migration
-$checkCols = ['is_custom','custom_image','custom_voice','custom_description','custom_image_url'];
+$checkCols = ['is_custom','custom_image','custom_voice','custom_description','custom_image_url','self_shoulder','self_inseam','self_sleeve_length','self_neck'];
 foreach ($checkCols as $col) {
     $res = $db->prepare("SELECT column_name FROM information_schema.columns WHERE table_name='orders' AND column_name=?");
     $res->execute([$col]);
@@ -51,6 +51,11 @@ foreach($payCols as $pc) {
 // Ensure custom_voice is TEXT (in case it was previously VARCHAR)
 $db->exec("ALTER TABLE orders ALTER COLUMN custom_voice TYPE TEXT");
 
+// Get customer saved measurements for auto-fill
+$mStmt = $db->prepare("SELECT * FROM measurements WHERE customer_id=? ORDER BY created_at DESC LIMIT 1");
+$mStmt->execute([$cid]);
+$savedM = $mStmt->fetch() ?: [];
+
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $items = $_POST['items'] ?? []; // Array of [style_id => ['qty'=>N, 'fabric_id'=>ID, 'custom_fabric'=>S]]
@@ -66,6 +71,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $sWaist = $_POST['self_waist'] ?: null;
         $sHips = $_POST['self_hips'] ?: null;
         $sHeight = $_POST['self_height'] ?: null;
+        $sShoulder = $_POST['self_shoulder'] ?: null;
+        $sInseam = $_POST['self_inseam'] ?: null;
+        $sSleeve = $_POST['self_sleeve_length'] ?: null;
+        $sNeck = $_POST['self_neck'] ?: null;
         
         $pay_method = $_POST['payment_method'] ?? 'cash';
         $pay_ref    = trim($_POST['payment_reference'] ?? '');
@@ -102,8 +111,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $fId = ($fIdRaw === 'other') ? null : (int)$fIdRaw;
                 $customFabric = ($fIdRaw === 'other') ? trim($_POST['custom_fabric_details'] ?? '') : null;
 
-                $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,custom_fabric,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, custom_voice, custom_description, custom_image, payment_method, payment_status, payment_reference, batch_id) VALUES(?,?,?,?,?,'pending',?,?,?,?,?,0.00, TRUE, ?, ?, ?, ?, ?, ?, ?)")
-                   ->execute([$cid, null, $fId, $customFabric, $custom_qty, $notes, $sBust, $sWaist, $sHips, $sHeight, $custom_voice, $custom_desc, $custom_img_path, $pay_method, $pay_status, $pay_ref, $batch_id]);
+                $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,custom_fabric,quantity,status,notes,self_bust,self_waist,self_hips,self_height,self_shoulder,self_inseam,self_sleeve_length,self_neck,total_amount, is_custom, custom_voice, custom_description, custom_image, payment_method, payment_status, payment_reference, batch_id) VALUES(?,?,?,?,?,'pending',?,?,?,?,?,?,?,?,?,0.00, TRUE, ?, ?, ?, ?, ?, ?, ?)")
+                   ->execute([$cid, null, $fId, $customFabric, $custom_qty, $notes, $sBust, $sWaist, $sHips, $sHeight, $sShoulder, $sInseam, $sSleeve, $sNeck, $custom_voice, $custom_desc, $custom_img_path, $pay_method, $pay_status, $pay_ref, $batch_id]);
             }
 
             // 2. Handle Standard Styles
@@ -122,8 +131,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sPrice = (float)$sStmt->fetchColumn();
                 $itemTotal = $sPrice * $qty;
 
-                $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,custom_fabric,quantity,status,notes,self_bust,self_waist,self_hips,self_height,total_amount, is_custom, payment_method, payment_status, payment_reference, batch_id) VALUES(?,?,?,?,?,'pending',?,?,?,?,?,?, FALSE, ?, ?, ?, ?)")
-                   ->execute([$cid, $sid, $fId, $customFabric, $qty, $notes, $sBust, $sWaist, $sHips, $sHeight, $itemTotal, $pay_method, $pay_status, $pay_ref, $batch_id]);
+                $db->prepare("INSERT INTO orders(customer_id,style_id,fabric_id,custom_fabric,quantity,status,notes,self_bust,self_waist,self_hips,self_height,self_shoulder,self_inseam,self_sleeve_length,self_neck,total_amount, is_custom, payment_method, payment_status, payment_reference, batch_id) VALUES(?,?,?,?,?,'pending',?,?,?,?,?,?,?,?,?,?, FALSE, ?, ?, ?, ?)")
+                   ->execute([$cid, $sid, $fId, $customFabric, $qty, $notes, $sBust, $sWaist, $sHips, $sHeight, $sShoulder, $sInseam, $sSleeve, $sNeck, $itemTotal, $pay_method, $pay_status, $pay_ref, $batch_id]);
             }
 
             $db->commit();
@@ -265,10 +274,14 @@ require_once __DIR__ . '/../includes/customer_header.php';
           <h6 class="mb-2 text-muted"><i class="bi bi-rulers me-1"></i>Optional: Self-Reported Measurements (inches)</h6>
           <small class="text-muted d-block mb-3">Our staff will always verify in-person, but you can provide an estimate to help us prepare.</small>
           <div class="row g-2">
-            <div class="col-6 col-sm-3"><label class="form-label small fw-600">Bust</label><input type="number" step="0.5" class="form-control form-control-sm" name="self_bust" value="<?= $_POST['self_bust']??'' ?>" placeholder="e.g. 36"></div>
-            <div class="col-6 col-sm-3"><label class="form-label small fw-600">Waist</label><input type="number" step="0.5" class="form-control form-control-sm" name="self_waist" value="<?= $_POST['self_waist']??'' ?>" placeholder="e.g. 28"></div>
-            <div class="col-6 col-sm-3"><label class="form-label small fw-600">Hips</label><input type="number" step="0.5" class="form-control form-control-sm" name="self_hips" value="<?= $_POST['self_hips']??'' ?>" placeholder="e.g. 38"></div>
-            <div class="col-6 col-sm-3"><label class="form-label small fw-600">Height</label><input type="number" step="0.5" class="form-control form-control-sm" name="self_height" value="<?= $_POST['self_height']??'' ?>" placeholder="e.g. 64"></div>
+            <div class="col-6 col-sm-3"><label class="form-label small fw-600">Bust</label><input type="number" step="0.5" class="form-control form-control-sm" name="self_bust" value="<?= $_POST['self_bust'] ?? $savedM['bust'] ?? '' ?>" placeholder="e.g. 36"></div>
+            <div class="col-6 col-sm-3"><label class="form-label small fw-600">Waist</label><input type="number" step="0.5" class="form-control form-control-sm" name="self_waist" value="<?= $_POST['self_waist'] ?? $savedM['waist'] ?? '' ?>" placeholder="e.g. 28"></div>
+            <div class="col-6 col-sm-3"><label class="form-label small fw-600">Hips</label><input type="number" step="0.5" class="form-control form-control-sm" name="self_hips" value="<?= $_POST['self_hips'] ?? $savedM['hips'] ?? '' ?>" placeholder="e.g. 38"></div>
+            <div class="col-6 col-sm-3"><label class="form-label small fw-600">Height</label><input type="number" step="0.5" class="form-control form-control-sm" name="self_height" value="<?= $_POST['self_height'] ?? $savedM['height'] ?? '' ?>" placeholder="e.g. 64"></div>
+            <div class="col-6 col-sm-3 mt-2"><label class="form-label small fw-600">Shoulder</label><input type="number" step="0.5" class="form-control form-control-sm" name="self_shoulder" value="<?= $_POST['self_shoulder'] ?? $savedM['shoulder'] ?? '' ?>" placeholder="Shoulder"></div>
+            <div class="col-6 col-sm-3 mt-2"><label class="form-label small fw-600">Inseam</label><input type="number" step="0.5" class="form-control form-control-sm" name="self_inseam" value="<?= $_POST['self_inseam'] ?? $savedM['inseam'] ?? '' ?>" placeholder="Inseam"></div>
+            <div class="col-6 col-sm-3 mt-2"><label class="form-label small fw-600">Sleeve</label><input type="number" step="0.5" class="form-control form-control-sm" name="self_sleeve_length" value="<?= $_POST['self_sleeve_length'] ?? $savedM['sleeve_length'] ?? '' ?>" placeholder="Sleeve"></div>
+            <div class="col-6 col-sm-3 mt-2"><label class="form-label small fw-600">Neck</label><input type="number" step="0.5" class="form-control form-control-sm" name="self_neck" value="<?= $_POST['self_neck'] ?? $savedM['neck'] ?? '' ?>" placeholder="Neck"></div>
           </div>
 
           <div class="card bg-light border-0 mt-4">

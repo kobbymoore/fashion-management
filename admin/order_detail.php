@@ -204,8 +204,8 @@ require_once __DIR__ . '/../includes/header.php';
         <hr class="divider-pink">
         <h6 class="mb-2 text-muted">Self-Reported Measurements</h6>
         <div class="row g-2 small">
-          <?php foreach(['bust','waist','hips','height'] as $f): if($order["self_$f"]): ?>
-            <div class="col-6 col-sm-3"><strong><?= ucfirst($f) ?></strong><br><?= $order["self_$f"] ?> in</div>
+          <?php foreach(['bust','waist','hips','height','shoulder','inseam','sleeve_length','neck'] as $f): if($order["self_$f"]): ?>
+            <div class="col-6 col-sm-3"><strong><?= ucfirst(str_replace('_',' ',$f)) ?></strong><br><?= $order["self_$f"] ?> in</div>
           <?php endif; endforeach; ?>
         </div>
         <?php endif; ?>

@@ -81,11 +81,11 @@ require_once __DIR__ . '/../includes/customer_header.php';
         </a>
       </div>
       <div class="col-6">
-        <div class="service-card h-100 <?= !$hasMeasure?'border-danger':'' ?>">
+        <a href="<?= BASE_URL ?>/customer/measurements.php" class="service-card d-block text-decoration-none h-100 <?= !$hasMeasure?'border-danger':'' ?>">
           <div class="service-icon" style="<?= !$hasMeasure?'background:#fef2f2;color:#ef4444;':'' ?>"><i class="bi bi-rulers"></i></div>
           <strong class="d-block small"><?= $hasMeasure?'Measurements':'No Measurements' ?></strong>
-          <small class="text-muted"><?= $hasMeasure?'Staff has your sizes':'Visit us to be measured' ?></small>
-        </div>
+          <small class="text-muted"><?= $hasMeasure?'View/Update your sizes':'Set your measurements' ?></small>
+        </a>
       </div>
     </div>
   </div>
